@@ -8,10 +8,10 @@ import journeymap.client.api.event.*;
 public class ClientEventManager
 {
     private final DisplayUpdateEventThrottle displayUpdateEventThrottle;
-    private final Collection<PluginWrapper> plugins;
+    private final Collection<ClientPluginWrapper> plugins;
     private EnumSet<ClientEvent.Type> subscribedClientEventTypes;
     
-    public ClientEventManager(final Collection<PluginWrapper> plugins) {
+    public ClientEventManager(final Collection<ClientPluginWrapper> plugins) {
         this.displayUpdateEventThrottle = new DisplayUpdateEventThrottle();
         this.subscribedClientEventTypes = EnumSet.noneOf(ClientEvent.Type.class);
         this.plugins = plugins;
@@ -19,7 +19,7 @@ public class ClientEventManager
     
     public void updateSubscribedTypes() {
         this.subscribedClientEventTypes = EnumSet.noneOf(ClientEvent.Type.class);
-        for (final PluginWrapper wrapper : this.plugins) {
+        for (final ClientPluginWrapper wrapper : this.plugins) {
             this.subscribedClientEventTypes.addAll((Collection<?>)wrapper.getSubscribedClientEventTypes());
         }
     }
@@ -34,7 +34,7 @@ public class ClientEventManager
             return;
         }
         final ClientEvent clientEvent = new ClientEvent(type, dimension);
-        for (final PluginWrapper wrapper : this.plugins) {
+        for (final ClientPluginWrapper wrapper : this.plugins) {
             try {
                 wrapper.notify(clientEvent);
             }
@@ -48,7 +48,7 @@ public class ClientEventManager
         if (this.plugins.isEmpty() || !this.subscribedClientEventTypes.contains(ClientEvent.Type.DEATH_WAYPOINT)) {
             return;
         }
-        for (final PluginWrapper wrapper : this.plugins) {
+        for (final ClientPluginWrapper wrapper : this.plugins) {
             try {
                 wrapper.notify(clientEvent);
             }
@@ -76,7 +76,7 @@ public class ClientEventManager
             while (iterator.hasNext()) {
                 final DisplayUpdateEvent clientEvent = iterator.next();
                 iterator.remove();
-                for (final PluginWrapper wrapper : this.plugins) {
+                for (final ClientPluginWrapper wrapper : this.plugins) {
                     try {
                         wrapper.notify(clientEvent);
                     }

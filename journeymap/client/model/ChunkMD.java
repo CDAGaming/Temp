@@ -194,7 +194,7 @@ public class ChunkMD
     }
     
     public Boolean hasNoSky() {
-        return !this.getWorld().field_73011_w.func_76569_d();
+        return this.getWorld().field_73011_w.func_177495_o();
     }
     
     public boolean canBlockSeeTheSky(final int localX, final int y, final int localZ) {
@@ -217,30 +217,30 @@ public class ChunkMD
         this.getRenderTimes().clear();
     }
     
-    public void resetRenderTime(final MapType mapType) {
-        this.getRenderTimes().put(mapType, 0L);
+    public void resetRenderTime(final MapView mapView) {
+        this.getRenderTimes().put(mapView, 0L);
     }
     
-    public void resetBlockData(final MapType mapType) {
-        this.getBlockData().get(mapType).clear();
+    public void resetBlockData(final MapView mapView) {
+        this.getBlockData().get(mapView).clear();
     }
     
-    protected HashMap<MapType, Long> getRenderTimes() {
+    protected HashMap<MapView, Long> getRenderTimes() {
         Serializable obj = this.properties.get("lastRendered");
         if (!(obj instanceof HashMap)) {
             obj = new HashMap<Object, Object>();
             this.properties.put("lastRendered", obj);
         }
-        return (HashMap<MapType, Long>)obj;
+        return (HashMap<MapView, Long>)obj;
     }
     
-    public long getLastRendered(final MapType mapType) {
-        return this.getRenderTimes().getOrDefault(mapType, 0L);
+    public long getLastRendered(final MapView mapView) {
+        return this.getRenderTimes().getOrDefault(mapView, 0L);
     }
     
-    public long setRendered(final MapType mapType) {
+    public long setRendered(final MapView mapView) {
         final long now = System.currentTimeMillis();
-        this.getRenderTimes().put(mapType, now);
+        this.getRenderTimes().put(mapView, now);
         return now;
     }
     
@@ -260,16 +260,16 @@ public class ChunkMD
         return this.blockDataArrays;
     }
     
-    public BlockDataArrays.DataArray<Integer> getBlockDataInts(final MapType mapType) {
-        return this.blockDataArrays.get(mapType).ints();
+    public BlockDataArrays.DataArray<Integer> getBlockDataInts(final MapView mapView) {
+        return this.blockDataArrays.get(mapView).ints();
     }
     
-    public BlockDataArrays.DataArray<Float> getBlockDataFloats(final MapType mapType) {
-        return this.blockDataArrays.get(mapType).floats();
+    public BlockDataArrays.DataArray<Float> getBlockDataFloats(final MapView mapView) {
+        return this.blockDataArrays.get(mapView).floats();
     }
     
-    public BlockDataArrays.DataArray<Boolean> getBlockDataBooleans(final MapType mapType) {
-        return this.blockDataArrays.get(mapType).booleans();
+    public BlockDataArrays.DataArray<Boolean> getBlockDataBooleans(final MapView mapView) {
+        return this.blockDataArrays.get(mapView).booleans();
     }
     
     @Override

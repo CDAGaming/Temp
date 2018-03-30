@@ -75,7 +75,7 @@ public class ThemeToolbar extends Button
         return this.toolbarSpec;
     }
     
-    private ButtonList getButtonList() {
+    public ButtonList getButtonList() {
         return this.buttonList;
     }
     

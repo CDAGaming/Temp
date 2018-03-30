@@ -1,11 +1,16 @@
 package journeymap.client.command;
 
-import org.apache.logging.log4j.util.*;
+import net.minecraft.client.*;
+import journeymap.common.*;
+import com.mojang.authlib.*;
+import journeymap.common.log.*;
+import net.minecraft.client.entity.*;
+import net.minecraft.server.integrated.*;
+import net.minecraft.server.management.*;
+import com.google.common.base.*;
 import net.minecraft.server.*;
 import java.util.*;
 import net.minecraft.util.text.*;
-import journeymap.common.*;
-import journeymap.common.log.*;
 import net.minecraft.command.*;
 import net.minecraft.util.math.*;
 
@@ -15,6 +20,33 @@ public class ClientCommandInvoker implements ICommand
     
     public ClientCommandInvoker() {
         this.commandMap = new HashMap<String, ICommand>();
+    }
+    
+    public static boolean commandsAllowed(final Minecraft mc) {
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player != null && mc.func_71401_C() != null) {
+            final IntegratedServer mcServer = mc.func_71401_C();
+            PlayerList configurationManager = null;
+            GameProfile profile = null;
+            try {
+                profile = new GameProfile(player.func_110124_au(), player.func_70005_c_());
+                configurationManager = mcServer.func_184103_al();
+                return configurationManager.func_152596_g(profile);
+            }
+            catch (Exception e) {
+                try {
+                    if (profile != null && configurationManager != null) {
+                        return mcServer.func_71264_H() && mcServer.field_71305_c[0].func_72912_H().func_76086_u() && mcServer.func_71214_G().equalsIgnoreCase(profile.getName());
+                    }
+                    Journeymap.getLogger().warn("Failed to check commandsAllowed both ways: " + LogFormatter.toString(e) + ", and profile or configManager were null.");
+                    return true;
+                }
+                catch (Exception e2) {
+                    Journeymap.getLogger().warn("Failed to check commandsAllowed. Both ways failed: " + LogFormatter.toString(e) + ", and " + LogFormatter.toString(e2));
+                }
+            }
+        }
+        return true;
     }
     
     public ClientCommandInvoker register(final ICommand command) {
@@ -30,7 +62,7 @@ public class ClientCommandInvoker implements ICommand
         final StringBuffer sb = new StringBuffer();
         for (final ICommand command : this.commandMap.values()) {
             final String usage = command.func_71518_a(sender);
-            if (!Strings.isEmpty((CharSequence)usage)) {
+            if (!Strings.isNullOrEmpty(usage)) {
                 if (sb.length() > 0) {
                     sb.append("\n");
                 }

@@ -13,6 +13,8 @@ public interface CommonProxy
     
     void postInitialize(final FMLPostInitializationEvent p0) throws Throwable;
     
+    void serverStartingEvent(final FMLServerStartingEvent p0) throws Throwable;
+    
     boolean checkModLists(final Map<String, String> p0, final Side p1);
     
     boolean isUpdateCheckEnabled();

@@ -1,6 +1,5 @@
 package modinfo;
 
-import org.apache.logging.log4j.*;
 import java.util.*;
 import journeymap.client.io.*;
 import com.google.gson.*;
@@ -28,7 +27,7 @@ public class Config implements Serializable
                 config = (Config)gson.fromJson((Reader)new FileReader(configFile), (Class)Config.class);
             }
             catch (Exception e) {
-                ModInfo.LOGGER.log(Level.ERROR, "Can't read file " + configFile, (Object)e.getMessage());
+                ModInfo.LOGGER.error("Can't read file " + configFile, (Object)e.getMessage());
                 if (configFile.exists()) {
                     configFile.delete();
                 }
@@ -104,7 +103,7 @@ public class Config implements Serializable
             fw.close();
         }
         catch (IOException e) {
-            ModInfo.LOGGER.log(Level.ERROR, "Can't save file " + configFile, (Throwable)e);
+            ModInfo.LOGGER.error("Can't save file " + configFile, (Throwable)e);
         }
     }
     

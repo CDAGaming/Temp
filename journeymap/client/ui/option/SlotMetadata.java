@@ -1,6 +1,5 @@
 package journeymap.client.ui.option;
 
-import net.minecraftforge.fml.client.*;
 import net.minecraft.util.text.*;
 import journeymap.client.*;
 import net.minecraft.client.gui.*;
@@ -143,7 +142,7 @@ public class SlotMetadata<T> implements Comparable<SlotMetadata>
     }
     
     public String[] getTooltip() {
-        final FontRenderer fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
+        final FontRenderer fontRenderer = JmUI.fontRenderer();
         final String bidiColor = fontRenderer.func_78260_a() ? "%2$s%1$s" : "%1$s%2$s";
         if (this.tooltipLines == null) {
             final ArrayList<TextComponentTranslation> lines = new ArrayList<TextComponentTranslation>(4);
@@ -172,7 +171,7 @@ public class SlotMetadata<T> implements Comparable<SlotMetadata>
     }
     
     protected List<TextComponentTranslation> getWordWrappedLines(final String color, final String original) {
-        final FontRenderer fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
+        final FontRenderer fontRenderer = JmUI.fontRenderer();
         final List<TextComponentTranslation> list = new ArrayList<TextComponentTranslation>();
         final int max = fontRenderer.func_78260_a() ? 170 : 250;
         for (final Object line : fontRenderer.func_78271_c(original, max)) {

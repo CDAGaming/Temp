@@ -1,5 +1,6 @@
 package journeymap.client.ui;
 
+import org.apache.logging.log4j.*;
 import journeymap.client.ui.minimap.*;
 import net.minecraft.client.*;
 import journeymap.common.*;
@@ -10,13 +11,12 @@ import journeymap.client.properties.*;
 import journeymap.client.ui.component.*;
 import net.minecraft.client.gui.inventory.*;
 import net.minecraft.entity.player.*;
-import org.apache.logging.log4j.*;
+import net.minecraft.client.entity.*;
 import net.minecraft.client.settings.*;
 import net.minecraft.client.gui.*;
 import journeymap.client.ui.fullscreen.*;
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import journeymap.common.properties.*;
-import journeymap.client.data.*;
 import journeymap.client.ui.waypoint.*;
 import journeymap.client.ui.dialog.*;
 
@@ -88,7 +88,11 @@ public enum UIManager
     public void openInventory() {
         this.logger.debug("Opening inventory");
         this.closeAll();
-        this.minecraft.func_147108_a((GuiScreen)new GuiInventory((EntityPlayer)this.minecraft.field_71439_g));
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player == null) {
+            return;
+        }
+        this.minecraft.func_147108_a((GuiScreen)new GuiInventory((EntityPlayer)player));
     }
     
     public <T extends JmUI> T open(final Class<T> uiClass, final JmUI returnDisplay) {
@@ -104,8 +108,8 @@ public enum UIManager
                 return this.open(uiClass.getConstructor((Class<?>[])new Class[0]).newInstance(new Object[0]));
             }
             catch (Throwable e3) {
-                this.logger.log(Level.ERROR, "1st unexpected exception creating UI: " + LogFormatter.toString(e2));
-                this.logger.log(Level.ERROR, "2nd unexpected exception creating UI: " + LogFormatter.toString(e3));
+                this.logger.error("1st unexpected exception creating UI: " + LogFormatter.toString(e2));
+                this.logger.error("2nd unexpected exception creating UI: " + LogFormatter.toString(e3));
                 this.closeCurrent();
                 return null;
             }
@@ -125,7 +129,7 @@ public enum UIManager
             return null;
         }
         catch (Throwable e2) {
-            this.logger.log(Level.ERROR, "Unexpected exception creating UI: " + LogFormatter.toString(e2));
+            this.logger.error("Unexpected exception creating UI: " + LogFormatter.toString(e2));
             this.closeCurrent();
             return null;
         }
@@ -234,7 +238,8 @@ public enum UIManager
     
     public void openFullscreenMap(final Waypoint waypoint) {
         try {
-            if (waypoint.isInPlayerDimension()) {
+            final EntityPlayerSP player = Journeymap.clientPlayer();
+            if (player != null && waypoint.isDisplayed(player.field_71093_bK)) {
                 final Fullscreen map = this.open(Fullscreen.class);
                 map.centerOn(waypoint);
             }
@@ -259,7 +264,7 @@ public enum UIManager
             handleLinkageError(e);
         }
         catch (Throwable e2) {
-            this.logger.log(Level.ERROR, "Unexpected exception creating MasterOptions with return class: " + LogFormatter.toString(e2));
+            this.logger.error("Unexpected exception creating MasterOptions with return class: " + LogFormatter.toString(e2));
         }
     }
     
@@ -268,32 +273,28 @@ public enum UIManager
     }
     
     public void openWaypointManager(final Waypoint waypoint, final JmUI returnDisplay) {
-        if (WaypointsData.isManagerEnabled()) {
-            try {
-                final WaypointManager manager = new WaypointManager(waypoint, returnDisplay);
-                this.open(manager);
-            }
-            catch (LinkageError e) {
-                handleLinkageError(e);
-            }
-            catch (Throwable e2) {
-                Journeymap.getLogger().error("Error opening waypoint manager: " + LogFormatter.toString(e2));
-            }
+        try {
+            final WaypointManager manager = new WaypointManager(waypoint, returnDisplay);
+            this.open(manager);
+        }
+        catch (LinkageError e) {
+            handleLinkageError(e);
+        }
+        catch (Throwable e2) {
+            Journeymap.getLogger().error("Error opening waypoint manager: " + LogFormatter.toString(e2));
         }
     }
     
     public void openWaypointEditor(final Waypoint waypoint, final boolean isNew, final JmUI returnDisplay) {
-        if (WaypointsData.isManagerEnabled()) {
-            try {
-                final WaypointEditor editor = new WaypointEditor(waypoint, isNew, returnDisplay);
-                this.open(editor);
-            }
-            catch (LinkageError e) {
-                handleLinkageError(e);
-            }
-            catch (Throwable e2) {
-                Journeymap.getLogger().error("Error opening waypoint editor: " + LogFormatter.toString(e2));
-            }
+        try {
+            final WaypointEditor editor = new WaypointEditor(waypoint, isNew, returnDisplay);
+            this.open(editor);
+        }
+        catch (LinkageError e) {
+            handleLinkageError(e);
+        }
+        catch (Throwable e2) {
+            Journeymap.getLogger().error("Error opening waypoint editor: " + LogFormatter.toString(e2));
         }
     }
     

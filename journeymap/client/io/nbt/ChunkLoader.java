@@ -5,10 +5,10 @@ import net.minecraft.world.chunk.storage.*;
 import net.minecraft.client.*;
 import net.minecraft.util.math.*;
 import journeymap.client.model.*;
-import net.minecraft.world.*;
-import java.io.*;
-import net.minecraft.world.chunk.*;
 import journeymap.common.*;
+import java.io.*;
+import net.minecraft.world.*;
+import net.minecraft.world.chunk.*;
 
 public class ChunkLoader
 {
@@ -17,8 +17,9 @@ public class ChunkLoader
     public static ChunkMD getChunkMD(final AnvilChunkLoader loader, final Minecraft mc, final ChunkPos coord, final boolean forceRetain) {
         try {
             if (RegionLoader.getRegionFile(mc, coord.field_77276_a, coord.field_77275_b).exists()) {
-                if (loader.chunkExists((World)mc.field_71441_e, coord.field_77276_a, coord.field_77275_b)) {
-                    final Chunk chunk = loader.func_75815_a((World)mc.field_71441_e, coord.field_77276_a, coord.field_77275_b);
+                final World world = Journeymap.clientWorld();
+                if (loader.chunkExists(world, coord.field_77276_a, coord.field_77275_b)) {
+                    final Chunk chunk = loader.func_75815_a(world, coord.field_77276_a, coord.field_77275_b);
                     if (chunk != null) {
                         if (!chunk.func_177410_o()) {
                             chunk.func_177417_c(true);

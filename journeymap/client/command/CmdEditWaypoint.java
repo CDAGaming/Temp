@@ -7,7 +7,7 @@ import journeymap.client.waypoint.*;
 import org.lwjgl.input.*;
 import journeymap.common.*;
 import journeymap.client.task.main.*;
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import net.minecraft.client.*;
 import journeymap.client.*;
 import journeymap.client.ui.*;
@@ -32,14 +32,14 @@ public class CmdEditWaypoint implements ICommand
     
     public void func_184881_a(final MinecraftServer server, final ICommandSender sender, final String[] args) throws CommandException {
         final String text = Joiner.on(" ").skipNulls().join((Object[])args);
-        final Waypoint waypoint = WaypointParser.parse(text);
+        final Waypoint waypoint = WaypointChatParser.parse(text);
         if (waypoint != null) {
             final boolean controlDown = Keyboard.isKeyDown(29) || Keyboard.isKeyDown(157);
             Journeymap.getClient().queueMainThreadTask(new IMainThreadTask() {
                 @Override
                 public IMainThreadTask perform(final Minecraft mc, final JourneymapClient jm) {
                     if (controlDown) {
-                        if (waypoint.isInPlayerDimension()) {
+                        if (waypoint.isDisplayed(Journeymap.clientPlayer().field_71093_bK)) {
                             waypoint.setPersistent(false);
                             UIManager.INSTANCE.openFullscreenMap(waypoint);
                         }

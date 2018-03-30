@@ -41,7 +41,7 @@ public class AboutDialog extends JmUI
         super(Constants.getString("jm.common.splash_title", Journeymap.JM_VERSION), returnDisplay);
         this.patreonLogo = TextureCache.getTexture(TextureCache.Patreon);
         this.discordLogo = TextureCache.getTexture(TextureCache.Discord);
-        this.people = Arrays.asList(new SplashPerson("AlexDurrani", "Sikandar Durrani", "jm.common.splash_patreon"), new SplashPerson("Davkas", "Davkas", "jm.common.splash_patreon"), new SplashPerson("TECH_GEEK10", "TECH_GEEK10", "jm.common.splash_patreon"), new SplashPerson("_TheEndless_", "The Endless", "jm.common.splash_patreon"), new SplashPerson("eladjenkins", "eladjenkins", "jm.common.splash_patreon"));
+        this.people = Arrays.asList(new SplashPerson("AlexDurrani", "Sikandar Durrani", "jm.common.splash_patreon"), new SplashPerson("_TheEndless_", "The Endless", "jm.common.splash_patreon"), new SplashPerson("eladjenkins", "eladjenkins", "jm.common.splash_patreon"), new SplashPerson("duomaz", "Duomaz", "jm.common.splash_patreon"));
         this.devs = Arrays.asList(new SplashPerson("mysticdrew", "mysticdrew", "jm.common.splash_developer"), new SplashPerson("techbrew", "techbrew", "jm.common.splash_developer"));
     }
     
@@ -108,7 +108,7 @@ public class AboutDialog extends JmUI
             return true;
         });
         this.bottomButtons = new ButtonList(new Button[] { this.buttonOptions });
-        if (this.field_146297_k.field_71441_e != null) {
+        if (Journeymap.clientWorld() != null) {
             this.bottomButtons.add(this.buttonClose);
         }
         this.bottomButtons.equalizeWidths(fr);

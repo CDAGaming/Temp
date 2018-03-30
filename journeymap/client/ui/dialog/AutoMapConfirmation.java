@@ -45,8 +45,9 @@ public class AutoMapConfirmation extends JmUI
         if (this.field_146292_n.isEmpty()) {
             this.func_73866_w_();
         }
+        final FontRenderer fr = this.getFontRenderer();
         final int x = this.field_146294_l / 2;
-        final int lineHeight = this.field_146289_q.field_78288_b + 3;
+        final int lineHeight = fr.field_78288_b + 3;
         int y = 35 + lineHeight * 2;
         this.func_73732_a(this.getFontRenderer(), Constants.getString("jm.common.automap_dialog_summary_1"), x, y, 16777215);
         y += lineHeight;
@@ -57,7 +58,7 @@ public class AutoMapConfirmation extends JmUI
         this.func_73732_a(this.getFontRenderer(), Constants.getString("jm.common.automap_dialog_text"), x, y, 16776960);
         y += lineHeight * 2;
         final ButtonList buttons = new ButtonList(new Button[] { this.buttonAll, this.buttonMissing });
-        buttons.equalizeWidths(this.field_146289_q, 4, 200);
+        buttons.equalizeWidths(this.getFontRenderer(), 4, 200);
         buttons.layoutCenteredHorizontal(x, y, true, 4);
         this.buttonClose.centerHorizontalOn(x).below(this.buttonMissing, lineHeight);
     }
@@ -82,7 +83,7 @@ public class AutoMapConfirmation extends JmUI
                 enable = false;
                 arg = null;
             }
-            MapRegionTask.MAP_TYPE = Fullscreen.state().getMapType();
+            MapRegionTask.MAP_VIEW = Fullscreen.state().getMapView();
             Journeymap.getClient().queueMainThreadTask(new IMainThreadTask() {
                 @Override
                 public IMainThreadTask perform(final Minecraft mc, final JourneymapClient jm) {

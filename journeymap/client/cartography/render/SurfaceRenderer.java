@@ -5,8 +5,9 @@ import journeymap.client.cartography.color.*;
 import net.minecraft.util.math.*;
 import journeymap.client.render.*;
 import java.awt.image.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import journeymap.common.*;
-import org.apache.logging.log4j.*;
 import journeymap.common.log.*;
 import journeymap.client.model.*;
 import journeymap.client.cartography.*;
@@ -27,8 +28,8 @@ public class SurfaceRenderer extends BaseRenderer implements IChunkRenderer
     }
     
     @Override
-    protected boolean updateOptions(final ChunkMD chunkMd, final MapType mapType) {
-        if (super.updateOptions(chunkMd, mapType)) {
+    protected boolean updateOptions(final ChunkMD chunkMd, final MapView mapView) {
+        if (super.updateOptions(chunkMd, mapView)) {
             this.ambientColor = RGB.floats(this.tweakSurfaceAmbientColor);
             return true;
         }
@@ -50,13 +51,32 @@ public class SurfaceRenderer extends BaseRenderer implements IChunkRenderer
         return this.render(dayChunkImage, nightChunkImage, chunkMd, null, false);
     }
     
-    public synchronized boolean render(final ComparableBufferedImage dayChunkImage, final BufferedImage nightChunkImage, final ChunkMD chunkMd, final Integer vSlice, final boolean cavePrePass) {
+    public synchronized boolean render(ComparableBufferedImage dayChunkImage, BufferedImage nightChunkImage, final ChunkMD chunkMd, final Integer vSlice, final boolean cavePrePass) {
         final StatTimer timer = cavePrePass ? this.renderSurfacePrepassTimer : this.renderSurfaceTimer;
         try {
             timer.start();
-            this.updateOptions(chunkMd, MapType.from(MapType.Name.surface, null, chunkMd.getDimension()));
+            Feature.MapType mapType = null;
+            final int dimension = chunkMd.getDimension();
+            final boolean renderDay = ClientFeatures.instance().isAllowed(Feature.MapType.Day, dimension);
+            final boolean renderNight = ClientFeatures.instance().isAllowed(Feature.MapType.Night, dimension);
+            if (renderDay) {
+                mapType = Feature.MapType.Day;
+            }
+            else {
+                if (!renderNight) {
+                    return false;
+                }
+                mapType = Feature.MapType.Night;
+            }
+            this.updateOptions(chunkMd, MapView.from(mapType, null, dimension));
             if (!this.hasSlopes(chunkMd, vSlice)) {
                 this.populateSlopes(chunkMd, vSlice, this.getSlopes(chunkMd, vSlice));
+            }
+            if (!renderDay) {
+                dayChunkImage = null;
+            }
+            if (!renderNight) {
+                nightChunkImage = null;
             }
             return this.renderSurface(dayChunkImage, nightChunkImage, chunkMd, vSlice, cavePrePass);
         }
@@ -83,7 +103,7 @@ public class SurfaceRenderer extends BaseRenderer implements IChunkRenderer
                     this.strata.reset();
                     int upperY = Math.max(0, chunkMd.getPrecipitationHeight(x, z));
                     final int lowerY = Math.max(0, this.getBlockHeight(chunkMd, x, null, z, null, null));
-                    if (upperY == 0 || lowerY == 0) {
+                    if (lowerY == 0 && chunkMd.getBlockMD(x, lowerY, z).isIgnore()) {
                         this.paintVoidBlock(dayChunkImage, x, z);
                         if (!cavePrePass && nightChunkImage != null) {
                             this.paintVoidBlock(nightChunkImage, x, z);
@@ -110,7 +130,7 @@ public class SurfaceRenderer extends BaseRenderer implements IChunkRenderer
             }
         }
         catch (Throwable t) {
-            Journeymap.getLogger().log(Level.WARN, LogFormatter.toString(t));
+            Journeymap.getLogger().warn(LogFormatter.toString(t));
         }
         finally {
             this.strata.reset();

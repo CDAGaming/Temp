@@ -1,82 +1,111 @@
 package journeymap.server.events;
 
-import net.minecraftforge.event.entity.*;
-import net.minecraft.entity.player.*;
-import net.minecraftforge.fml.common.network.*;
+import org.apache.logging.log4j.*;
 import journeymap.common.*;
-import journeymap.common.network.*;
-import journeymap.server.properties.*;
-import net.minecraftforge.fml.relauncher.*;
+import net.minecraftforge.event.entity.*;
+import journeymap.server.api.impl.*;
+import net.minecraft.entity.player.*;
 import net.minecraftforge.fml.common.eventhandler.*;
-import net.minecraftforge.fml.common.gameevent.*;
-import journeymap.common.network.model.*;
-import net.minecraftforge.fml.server.*;
+import net.minecraftforge.common.*;
+import net.minecraftforge.event.*;
+import net.minecraft.command.server.*;
+import journeymap.common.log.*;
+import net.minecraft.command.*;
+import net.minecraft.server.*;
+import net.minecraft.entity.*;
+import net.minecraftforge.fml.common.network.*;
 
-public class ForgeEvents
+public enum ForgeEvents
 {
-    @SideOnly(Side.SERVER)
-    @SubscribeEvent
-    public void on(final EntityJoinWorldEvent event) {
-        if (event.getEntity() instanceof EntityPlayerMP) {
-            final EntityPlayerMP player = (EntityPlayerMP)event.getEntity();
-            final Boolean hasForge = (Boolean)player.field_71135_a.func_147362_b().channel().attr(NetworkRegistry.FML_MARKER).get();
-            if (!hasForge) {
-                Journeymap.getLogger().debug(player.func_70005_c_() + " is connecting with a vanilla client, ignoring JoinWorldEvent");
-                return;
+    INSTANCE;
+    
+    private Logger logger;
+    
+    private ForgeEvents() {
+        this.logger = Journeymap.getLogger();
+    }
+    
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPlayerJoinWorldStart(final EntityJoinWorldEvent event) {
+        final EntityPlayerMP player = this.getForgePlayer(event.getEntity());
+        if (player != null) {
+            ServerAPI.INSTANCE.pauseClientPackets(player);
+            if (this.logger.isDebugEnabled()) {
+                this.logger.debug(String.format("Player %s joining dimension %s...", player.getDisplayNameString(), player.field_71093_bK));
             }
-            Journeymap.getLogger().info(((EntityPlayerMP)event.getEntity()).getDisplayNameString() + " joining dimension " + event.getEntity().field_71093_bK);
-            final DimensionProperties dimensionProperties = PropertiesManager.getInstance().getDimProperties(player.field_71093_bK);
+        }
+    }
+    
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onPlayerJoinWorldEnd(final EntityJoinWorldEvent event) {
+        final EntityPlayerMP player = this.getForgePlayer(event.getEntity());
+        if (player != null) {
             try {
-                PermissionProperties prop;
-                if (dimensionProperties.enabled.get()) {
-                    prop = (DimensionProperties)dimensionProperties.clone();
+                int delay = 500;
+                for (final int dim : DimensionManager.getIDs()) {
+                    final ServerAPI instance = ServerAPI.INSTANCE;
+                    final EntityPlayerMP player2 = player;
+                    final int dimension = dim;
+                    delay += 100;
+                    instance.sendDimensionPolicies(player2, dimension, delay);
+                }
+            }
+            finally {
+                ServerAPI.INSTANCE.resumeClientPackets(player);
+            }
+        }
+    }
+    
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onCommandEvent(final CommandEvent event) {
+        final ICommand command = event.getCommand();
+        try {
+            EntityPlayerMP player = null;
+            if (command instanceof CommandOp || command instanceof CommandDeOp) {
+                final String username = event.getParameters()[0];
+                final MinecraftServer server = event.getSender().func_184102_h();
+                player = CommandBase.func_184888_a(server, event.getSender(), username);
+            }
+            else if (command instanceof CommandGameMode) {
+                final String[] args = event.getParameters();
+                if (args.length >= 2) {
+                    final String username2 = event.getParameters()[1];
+                    final MinecraftServer server2 = event.getSender().func_184102_h();
+                    player = CommandBase.func_184888_a(server2, event.getSender(), username2);
                 }
                 else {
-                    prop = (GlobalProperties)PropertiesManager.getInstance().getGlobalProperties().clone();
+                    final Entity sender = event.getSender().func_174793_f();
+                    if (sender instanceof EntityPlayerMP) {
+                        player = (EntityPlayerMP)sender;
+                    }
                 }
-                if (this.isOp(player)) {
-                    prop.radarEnabled.set(prop.opRadarEnabled.get());
-                    prop.caveMappingEnabled.set(prop.opCaveMappingEnabled.get());
-                    prop.surfaceMappingEnabled.set(prop.opSurfaceMappingEnabled.get());
-                    prop.topoMappingEnabled.set(prop.opTopoMappingEnabled.get());
+            }
+            if (player != null) {
+                int delay = 500;
+                for (final int dim : DimensionManager.getIDs()) {
+                    final ServerAPI instance = ServerAPI.INSTANCE;
+                    final EntityPlayerMP player2 = player;
+                    final int dimension = dim;
+                    delay += 100;
+                    instance.sendDimensionPolicies(player2, dimension, delay);
                 }
-                PacketHandler.sendDimensionPacketToPlayer(player, prop);
             }
-            catch (CloneNotSupportedException e) {
-                Journeymap.getLogger().error("CloneNotSupportedException: ", (Throwable)e);
-            }
+        }
+        catch (PlayerNotFoundException ex) {}
+        catch (Exception e) {
+            this.logger.error(String.format("Error handling CommandEvent %s: %s", command, LogFormatter.toPartialString(e)));
         }
     }
     
-    @SideOnly(Side.SERVER)
-    @SubscribeEvent
-    public void playerLoggedInEvent(final PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.player instanceof EntityPlayerMP) {
-            if (PropertiesManager.getInstance().getGlobalProperties().useWorldId.get()) {
-                PacketHandler.sendPlayerWorldID((EntityPlayerMP)event.player);
+    private EntityPlayerMP getForgePlayer(final Entity entity) {
+        if (entity instanceof EntityPlayerMP) {
+            final EntityPlayerMP player = (EntityPlayerMP)entity;
+            final boolean hasForge = (boolean)player.field_71135_a.func_147362_b().channel().attr(NetworkRegistry.FML_MARKER).get();
+            if (hasForge) {
+                return player;
             }
-            final InitLogin init = new InitLogin();
-            if (PropertiesManager.getInstance().getGlobalProperties().teleportEnabled.get()) {
-                init.setTeleportEnabled(true);
-            }
-            else if (this.isOp((EntityPlayerMP)event.player)) {
-                init.setTeleportEnabled(true);
-            }
-            else {
-                init.setTeleportEnabled(false);
-            }
-            PacketHandler.sendLoginPacket((EntityPlayerMP)event.player, init);
+            Journeymap.getLogger().debug(String.format("Player %s joining dimension %s doesn't have Forge.", player.getDisplayNameString(), player.field_71093_bK));
         }
-    }
-    
-    private boolean isOp(final EntityPlayerMP player) {
-        final String[] func_152606_n;
-        final String[] ops = func_152606_n = FMLServerHandler.instance().getServer().func_184103_al().func_152606_n();
-        for (final String opName : func_152606_n) {
-            if (player.getDisplayNameString().equalsIgnoreCase(opName)) {
-                return true;
-            }
-        }
-        return false;
+        return null;
     }
 }

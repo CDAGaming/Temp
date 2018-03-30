@@ -2,7 +2,6 @@ package modinfo.mp.v1;
 
 import java.util.concurrent.*;
 import modinfo.*;
-import org.apache.logging.log4j.*;
 import java.net.*;
 import java.io.*;
 
@@ -49,11 +48,11 @@ public class Message implements Callable<Object>
             }
             catch (MalformedURLException ex) {
                 exception = ex;
-                ModInfo.LOGGER.log(Level.ERROR, "ModInfo got a bad URL: " + this.endpoint);
+                ModInfo.LOGGER.error("ModInfo got a bad URL: " + this.endpoint);
             }
             catch (IOException ex2) {
                 exception = ex2;
-                ModInfo.LOGGER.log(Level.ERROR, "ModInfo can't send message", (Throwable)ex2);
+                ModInfo.LOGGER.error("ModInfo can't send message", (Throwable)ex2);
             }
             finally {
                 --remainingRetries;

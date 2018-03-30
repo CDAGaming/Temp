@@ -5,7 +5,6 @@ import journeymap.common.*;
 import journeymap.common.log.*;
 import journeymap.client.model.*;
 import java.awt.image.*;
-import org.apache.logging.log4j.*;
 import journeymap.client.render.*;
 
 public class ChunkRenderController
@@ -26,13 +25,13 @@ public class ChunkRenderController
         this.topoRenderer = new TopoRenderer();
     }
     
-    public BaseRenderer getRenderer(final RegionCoord rCoord, final MapType mapType, final ChunkMD chunkMd) {
+    public BaseRenderer getRenderer(final RegionCoord rCoord, final MapView mapView, final ChunkMD chunkMd) {
         try {
             final RegionImageSet regionImageSet = RegionImageCache.INSTANCE.getRegionImageSet(rCoord);
-            if (!mapType.isUnderground()) {
+            if (!mapView.isUnderground()) {
                 return this.overWorldSurfaceRenderer;
             }
-            final BufferedImage image = regionImageSet.getChunkImage(chunkMd, mapType);
+            final BufferedImage image = regionImageSet.getChunkImage(chunkMd, mapView);
             if (image != null) {
                 switch (rCoord.dimension) {
                     case -1: {
@@ -53,61 +52,61 @@ public class ChunkRenderController
         return null;
     }
     
-    public boolean renderChunk(final RegionCoord rCoord, final MapType mapType, final ChunkMD chunkMd) {
+    public boolean renderChunk(final RegionCoord rCoord, final MapView mapView, final ChunkMD chunkMd) {
         if (!Journeymap.getClient().isMapping()) {
             return false;
         }
         boolean renderOkay = false;
         try {
             final RegionImageSet regionImageSet = RegionImageCache.INSTANCE.getRegionImageSet(rCoord);
-            if (mapType.isUnderground()) {
-                final ComparableBufferedImage chunkSliceImage = regionImageSet.getChunkImage(chunkMd, mapType);
+            if (mapView.isUnderground()) {
+                final ComparableBufferedImage chunkSliceImage = regionImageSet.getChunkImage(chunkMd, mapView);
                 if (chunkSliceImage != null) {
                     switch (rCoord.dimension) {
                         case -1: {
-                            renderOkay = this.netherRenderer.render(chunkSliceImage, chunkMd, mapType.vSlice);
+                            renderOkay = this.netherRenderer.render(chunkSliceImage, chunkMd, mapView.vSlice);
                             break;
                         }
                         case 1: {
-                            renderOkay = this.endCaveRenderer.render(chunkSliceImage, chunkMd, mapType.vSlice);
+                            renderOkay = this.endCaveRenderer.render(chunkSliceImage, chunkMd, mapView.vSlice);
                             break;
                         }
                         default: {
-                            renderOkay = this.overWorldCaveRenderer.render(chunkSliceImage, chunkMd, mapType.vSlice);
+                            renderOkay = this.overWorldCaveRenderer.render(chunkSliceImage, chunkMd, mapView.vSlice);
                             break;
                         }
                     }
                     if (renderOkay) {
-                        regionImageSet.setChunkImage(chunkMd, mapType, chunkSliceImage);
+                        regionImageSet.setChunkImage(chunkMd, mapView, chunkSliceImage);
                     }
                 }
             }
-            else if (mapType.isTopo()) {
-                final ComparableBufferedImage imageTopo = regionImageSet.getChunkImage(chunkMd, MapType.topo(rCoord.dimension));
+            else if (mapView.isTopo()) {
+                final ComparableBufferedImage imageTopo = regionImageSet.getChunkImage(chunkMd, MapView.topo(rCoord.dimension));
                 renderOkay = this.topoRenderer.render(imageTopo, chunkMd, null);
                 if (renderOkay) {
-                    regionImageSet.setChunkImage(chunkMd, MapType.topo(rCoord.dimension), imageTopo);
+                    regionImageSet.setChunkImage(chunkMd, MapView.topo(rCoord.dimension), imageTopo);
                 }
             }
             else {
-                final ComparableBufferedImage imageDay = regionImageSet.getChunkImage(chunkMd, MapType.day(rCoord.dimension));
-                final ComparableBufferedImage imageNight = regionImageSet.getChunkImage(chunkMd, MapType.night(rCoord.dimension));
+                final ComparableBufferedImage imageDay = regionImageSet.getChunkImage(chunkMd, MapView.day(rCoord.dimension));
+                final ComparableBufferedImage imageNight = regionImageSet.getChunkImage(chunkMd, MapView.night(rCoord.dimension));
                 renderOkay = this.overWorldSurfaceRenderer.render(imageDay, imageNight, chunkMd);
                 if (renderOkay) {
-                    regionImageSet.setChunkImage(chunkMd, MapType.day(rCoord.dimension), imageDay);
-                    regionImageSet.setChunkImage(chunkMd, MapType.night(rCoord.dimension), imageNight);
+                    regionImageSet.setChunkImage(chunkMd, MapView.day(rCoord.dimension), imageDay);
+                    regionImageSet.setChunkImage(chunkMd, MapView.night(rCoord.dimension), imageNight);
                 }
             }
         }
         catch (ArrayIndexOutOfBoundsException e) {
-            Journeymap.getLogger().log(Level.WARN, LogFormatter.toString(e));
+            Journeymap.getLogger().warn(LogFormatter.toString(e));
             return false;
         }
         catch (Throwable t) {
             Journeymap.getLogger().error("Unexpected error in ChunkRenderController: " + LogFormatter.toString(t));
         }
         if (!renderOkay && Journeymap.getLogger().isDebugEnabled()) {
-            Journeymap.getLogger().debug(String.format("Chunk %s render failed for %s", chunkMd.getCoord(), mapType));
+            Journeymap.getLogger().debug(String.format("Chunk %s render failed for %s", chunkMd.getCoord(), mapView));
         }
         return renderOkay;
     }

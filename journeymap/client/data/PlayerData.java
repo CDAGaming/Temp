@@ -7,10 +7,10 @@ import net.minecraft.world.*;
 import net.minecraft.util.math.*;
 import journeymap.client.model.*;
 import net.minecraftforge.fml.client.*;
+import journeymap.common.*;
 import net.minecraft.entity.*;
 import journeymap.client.log.*;
 import net.minecraft.world.biome.*;
-import journeymap.common.*;
 
 public class PlayerData extends CacheLoader<Class, EntityDTO>
 {
@@ -26,26 +26,29 @@ public class PlayerData extends CacheLoader<Class, EntityDTO>
         if (posY < 0) {
             return true;
         }
-        int y = posY;
-    Label_0157:
+        boolean chunksLoaded = false;
+    Label_0160:
         for (int x = posX - 1; x <= posX + 1; ++x) {
             for (int z = posZ - 1; z <= posZ + 1; ++z) {
-                y = posY + 1;
+                final int y = posY + 1;
                 final ChunkMD chunkMD = DataCache.INSTANCE.getChunkMD(new ChunkPos(x >> 4, z >> 4));
-                if (chunkMD != null && chunkMD.ceiling(x & 0xF, z & 0xF) <= y) {
-                    isUnderground = false;
-                    break Label_0157;
+                if (chunkMD != null) {
+                    chunksLoaded = true;
+                    if (chunkMD.ceiling(x & 0xF, z & 0xF) <= y) {
+                        isUnderground = false;
+                        break Label_0160;
+                    }
                 }
             }
         }
-        return isUnderground;
+        return chunksLoaded && isUnderground;
     }
     
     public EntityDTO load(final Class aClass) throws Exception {
         final Minecraft mc = FMLClientHandler.instance().getClient();
-        final EntityPlayer player = (EntityPlayer)mc.field_71439_g;
-        final EntityDTO dto = DataCache.INSTANCE.getEntityDTO((EntityLivingBase)player);
-        dto.update((EntityLivingBase)player, false);
+        final EntityPlayer player = (EntityPlayer)Journeymap.clientPlayer();
+        final EntityDTO dto = DataCache.INSTANCE.getEntityDTO((Entity)player);
+        dto.update((Entity)player, false);
         dto.biome = this.getPlayerBiome(player);
         dto.underground = playerIsUnderground(mc, player);
         return dto;
@@ -54,7 +57,7 @@ public class PlayerData extends CacheLoader<Class, EntityDTO>
     private String getPlayerBiome(final EntityPlayer player) {
         if (player != null) {
             try {
-                final Biome biome = FMLClientHandler.instance().getClient().field_71441_e.getBiomeForCoordsBody(player.func_180425_c());
+                final Biome biome = Journeymap.clientWorld().getBiomeForCoordsBody(player.func_180425_c());
                 if (biome != null) {
                     return biome.func_185359_l();
                 }

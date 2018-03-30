@@ -1,13 +1,13 @@
 package journeymap.client.service;
 
 import journeymap.common.*;
-import org.apache.logging.log4j.*;
 import journeymap.common.log.*;
 import journeymap.client.log.*;
 import journeymap.client.properties.*;
 import java.nio.channels.*;
 import java.net.*;
 import java.io.*;
+import org.apache.logging.log4j.*;
 import se.rupy.http.*;
 import journeymap.common.thread.*;
 import java.util.concurrent.*;
@@ -39,7 +39,7 @@ public class WebServer
                 WebServer.instance.stop();
             }
             catch (Throwable e) {
-                Journeymap.getLogger().log(Level.ERROR, LogFormatter.toString(e));
+                Journeymap.getLogger().error(LogFormatter.toPartialString(e));
             }
         }
         if (enable) {
@@ -53,7 +53,7 @@ public class WebServer
                 }
             }
             catch (Throwable e) {
-                Journeymap.getLogger().log(Level.ERROR, LogFormatter.toString(e));
+                Journeymap.getLogger().error(LogFormatter.toString(e));
                 enable = false;
             }
             if (!enable) {

@@ -4,6 +4,8 @@ import journeymap.client.log.*;
 import journeymap.common.*;
 import net.minecraft.util.math.*;
 import journeymap.client.render.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import java.awt.image.*;
 import journeymap.common.log.*;
 import journeymap.client.model.*;
@@ -34,8 +36,8 @@ public class CaveRenderer extends BaseRenderer implements IChunkRenderer
     }
     
     @Override
-    protected boolean updateOptions(final ChunkMD chunkMd, final MapType mapType) {
-        if (super.updateOptions(chunkMd, mapType)) {
+    protected boolean updateOptions(final ChunkMD chunkMd, final MapView mapView) {
+        if (super.updateOptions(chunkMd, mapView)) {
             this.mapSurfaceAboveCaves = Journeymap.getClient().getCoreProperties().mapSurfaceAboveCaves.get();
             return true;
         }
@@ -58,7 +60,11 @@ public class CaveRenderer extends BaseRenderer implements IChunkRenderer
             Journeymap.getLogger().warn("ChunkOverworldCaveRenderer is for caves. vSlice can't be null");
             return false;
         }
-        this.updateOptions(chunkMd, MapType.underground(vSlice, chunkMd.getDimension()));
+        final int dimension = chunkMd.getDimension();
+        if (!ClientFeatures.instance().isAllowed(Feature.MapType.Underground, dimension)) {
+            return false;
+        }
+        this.updateOptions(chunkMd, MapView.underground(vSlice, dimension));
         this.renderCaveTimer.start();
         try {
             if (!this.hasSlopes(chunkMd, vSlice)) {
@@ -66,10 +72,10 @@ public class CaveRenderer extends BaseRenderer implements IChunkRenderer
             }
             BufferedImage chunkSurfaceImage = null;
             if (this.mapSurfaceAboveCaves) {
-                final MapType mapType = MapType.day(chunkMd.getDimension());
-                final RegionImageSet ris = RegionImageCache.INSTANCE.getRegionImageSet(chunkMd, mapType);
-                if (ris != null && ris.getHolder(mapType).hasTexture()) {
-                    chunkSurfaceImage = ris.getChunkImage(chunkMd, mapType);
+                final MapView mapView = MapView.day(chunkMd.getDimension());
+                final RegionImageSet ris = RegionImageCache.INSTANCE.getRegionImageSet(chunkMd, mapView);
+                if (ris != null && ris.getHolder(mapView).hasTexture()) {
+                    chunkSurfaceImage = ris.getChunkImage(chunkMd, mapView);
                 }
             }
             return this.renderUnderground(chunkSurfaceImage, chunkImage, chunkMd, vSlice);

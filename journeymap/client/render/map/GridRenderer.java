@@ -1,7 +1,7 @@
 package journeymap.client.render.map;
 
 import org.apache.logging.log4j.*;
-import journeymap.client.api.display.*;
+import journeymap.common.api.feature.*;
 import journeymap.client.log.*;
 import journeymap.client.api.util.*;
 import java.awt.geom.*;
@@ -33,7 +33,7 @@ public class GridRenderer
     private final TreeMap<TilePos, Tile> grid;
     private final Point2D.Double centerPixelOffset;
     private final int maxGlErrors = 20;
-    private final Context.UI contextUi;
+    private final Feature.Display contextUi;
     StatTimer updateTilesTimer1;
     StatTimer updateTilesTimer2;
     private UIState uiState;
@@ -45,7 +45,7 @@ public class GridRenderer
     private AxisAlignedBB blockBounds;
     private int lastHeight;
     private int lastWidth;
-    private MapType mapType;
+    private MapView mapView;
     private String centerTileKey;
     private int zoom;
     private double centerBlockX;
@@ -58,7 +58,7 @@ public class GridRenderer
     private FloatBuffer winPosBuf;
     private FloatBuffer objPosBuf;
     
-    public GridRenderer(final Context.UI contextUi, final int gridSize) {
+    public GridRenderer(final Feature.Display contextUi, final int gridSize) {
         this.centerPos = new TilePos(0, 0);
         this.logger = Journeymap.getLogger();
         this.debug = this.logger.isDebugEnabled();
@@ -101,7 +101,7 @@ public class GridRenderer
         }
     }
     
-    public Context.UI getDisplay() {
+    public Feature.Display getDisplay() {
         return this.contextUi;
     }
     
@@ -126,11 +126,11 @@ public class GridRenderer
     }
     
     public void move(final int deltaBlockX, final int deltaBlockZ) {
-        this.center(this.worldDir, this.mapType, this.centerBlockX + deltaBlockX, this.centerBlockZ + deltaBlockZ, this.zoom);
+        this.center(this.worldDir, this.mapView, this.centerBlockX + deltaBlockX, this.centerBlockZ + deltaBlockZ, this.zoom);
     }
     
     public boolean center() {
-        return this.center(this.worldDir, this.mapType, this.centerBlockX, this.centerBlockZ, this.zoom);
+        return this.center(this.worldDir, this.mapView, this.centerBlockX, this.centerBlockZ, this.zoom);
     }
     
     public boolean hasUnloadedTile() {
@@ -150,7 +150,7 @@ public class GridRenderer
         for (final Map.Entry<TilePos, Tile> entry : this.grid.entrySet()) {
             if (this.isOnScreen(entry.getKey())) {
                 final Tile tile = entry.getValue();
-                if (tile == null || !tile.hasTexture(this.mapType)) {
+                if (tile == null || !tile.hasTexture(this.mapView)) {
                     return true;
                 }
                 continue;
@@ -159,13 +159,13 @@ public class GridRenderer
         return false;
     }
     
-    public boolean center(final File worldDir, final MapType mapType, final double blockX, final double blockZ, final int zoom) {
-        final boolean mapTypeChanged = !Objects.equals(worldDir, this.worldDir) || !Objects.equals(mapType, this.mapType);
+    public boolean center(final File worldDir, final MapView mapView, final double blockX, final double blockZ, final int zoom) {
+        final boolean mapTypeChanged = !Objects.equals(worldDir, this.worldDir) || !Objects.equals(mapView, this.mapView);
         if (!Objects.equals(worldDir, this.worldDir)) {
             this.worldDir = worldDir;
         }
         if (blockX == this.centerBlockX && blockZ == this.centerBlockZ && zoom == this.zoom && !mapTypeChanged && !this.grid.isEmpty()) {
-            if (!Objects.equals(mapType.apiMapType, this.uiState.mapType)) {
+            if (!Objects.equals(mapView.mapType, this.uiState.mapType)) {
                 this.updateUIState(true);
             }
             return false;
@@ -196,9 +196,9 @@ public class GridRenderer
         return true;
     }
     
-    public void updateTiles(final MapType mapType, final int zoom, final boolean highQuality, final int width, final int height, final boolean fullUpdate, final double xOffset, final double yOffset) {
+    public void updateTiles(final MapView mapView, final int zoom, final boolean highQuality, final int width, final int height, final boolean fullUpdate, final double xOffset, final double yOffset) {
         this.updateTilesTimer1.start();
-        this.mapType = mapType;
+        this.mapView = mapView;
         this.zoom = zoom;
         this.updateBounds(width, height);
         Tile centerTile = this.grid.get(this.centerPos);
@@ -230,6 +230,9 @@ public class GridRenderer
         if (!fullUpdate) {
             return;
         }
+        if (mapView.isNone()) {
+            return;
+        }
         this.updateTilesTimer2.start();
         for (final Map.Entry<TilePos, Tile> entry : this.grid.entrySet()) {
             final TilePos pos = entry.getKey();
@@ -238,8 +241,8 @@ public class GridRenderer
                 tile = this.findNeighbor(centerTile, pos);
                 this.grid.put(pos, tile);
             }
-            if (!tile.hasTexture(this.mapType)) {
-                tile.updateTexture(this.worldDir, this.mapType, highQuality);
+            if (!tile.hasTexture(this.mapView)) {
+                tile.updateTexture(this.worldDir, this.mapView, highQuality);
             }
         }
         this.updateTilesTimer2.stop();
@@ -265,7 +268,7 @@ public class GridRenderer
             y = MathHelper.func_76128_c(DataCache.getPlayer().posY);
         }
         else {
-            y = FMLClientHandler.instance().getClient().field_71441_e.func_181545_F();
+            y = Journeymap.clientWorld().func_181545_F();
         }
         return new BlockPos(x, y, z);
     }
@@ -305,7 +308,7 @@ public class GridRenderer
         if (GridRenderer.enabled && !this.grid.isEmpty()) {
             final double centerX = offsetX + this.centerPixelOffset.x;
             final double centerZ = offsetZ + this.centerPixelOffset.y;
-            final GridSpec gridSpec = showGrid ? Journeymap.getClient().getCoreProperties().gridSpecs.getSpec(this.mapType) : null;
+            final GridSpec gridSpec = showGrid ? Journeymap.getClient().getCoreProperties().gridSpecs.getSpec(this.mapView) : null;
             boolean somethingDrew = false;
             for (final Map.Entry<TilePos, Tile> entry : this.grid.entrySet()) {
                 final TilePos pos = entry.getKey();
@@ -416,13 +419,13 @@ public class GridRenderer
         }
         UIState newState = null;
         if (isActive) {
-            final int worldHeight = FMLClientHandler.instance().getClient().field_71441_e.func_72940_L();
+            final int worldHeight = Journeymap.clientWorld().func_72940_L();
             final int pad = 32;
             final BlockPos upperLeft = this.getBlockAtPixel(new Point2D.Double(this.screenBounds.getMinX(), this.screenBounds.getMinY()));
             final BlockPos lowerRight = this.getBlockAtPixel(new Point2D.Double(this.screenBounds.getMaxX(), this.screenBounds.getMaxY()));
             this.blockBounds = new AxisAlignedBB(upperLeft.func_177982_a(-pad, 0, -pad), lowerRight.func_177982_a(pad, worldHeight, pad));
             try {
-                newState = new UIState(this.contextUi, true, this.mapType.dimension, this.zoom, this.mapType.apiMapType, new BlockPos(this.centerBlockX, 0.0, this.centerBlockZ), this.mapType.vSlice, this.blockBounds, this.screenBounds);
+                newState = new UIState(this.contextUi, true, this.mapView.dimension, this.zoom, this.mapView.mapType, new BlockPos(this.centerBlockX, 0.0, this.centerBlockZ), this.mapView.vSlice, this.blockBounds, this.screenBounds);
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -448,11 +451,11 @@ public class GridRenderer
     }
     
     private Tile findTile(final int tileX, final int tileZ, final int zoom) {
-        return Tile.create(tileX, tileZ, zoom, this.worldDir, this.mapType, Journeymap.getClient().getCoreProperties().tileHighDisplayQuality.get());
+        return Tile.create(tileX, tileZ, zoom, this.worldDir, this.mapView, Journeymap.getClient().getCoreProperties().tileHighDisplayQuality.get());
     }
     
-    public void setContext(final File worldDir, final MapType mapType) {
-        TileDrawStepCache.setContext(this.worldDir = worldDir, this.mapType = mapType);
+    public void setContext(final File worldDir, final MapView mapView) {
+        TileDrawStepCache.setContext(this.worldDir = worldDir, this.mapView = mapView);
     }
     
     public void updateRotation(final double rotation) {
@@ -479,7 +482,7 @@ public class GridRenderer
         return new Point2D.Double(this.winPosBuf.get(0), this.winPosBuf.get(1));
     }
     
-    public Point2D.Double getMatrixPosition(final Point2D.Double windowPixel) {
+    public Point2D.Double getMatrix(final Point2D.Double windowPixel) {
         GLU.gluUnProject((float)windowPixel.x, (float)windowPixel.y, 0.0f, this.modelMatrixBuf, this.projMatrixBuf, this.viewportBuf, this.objPosBuf);
         return new Point2D.Double(this.objPosBuf.get(0), this.objPosBuf.get(1));
     }
@@ -496,8 +499,8 @@ public class GridRenderer
         return this.worldDir;
     }
     
-    public MapType getMapType() {
-        return this.mapType;
+    public MapView getMapView() {
+        return this.mapView;
     }
     
     public int getZoom() {
@@ -505,7 +508,7 @@ public class GridRenderer
     }
     
     public boolean setZoom(final int zoom) {
-        return this.center(this.worldDir, this.mapType, this.centerBlockX, this.centerBlockZ, zoom);
+        return this.center(this.worldDir, this.mapView, this.centerBlockX, this.centerBlockZ, zoom);
     }
     
     public int getRenderSize() {

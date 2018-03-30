@@ -49,7 +49,7 @@ public abstract class BaseRenderer implements IChunkRenderer
     private static final String PROP_SLOPES = "slopes";
     private static final String PROP_HEIGHTS = "heights";
     private static final String PROP_WATER_HEIGHTS = "waterHeights";
-    private MapType currentMapType;
+    private MapView currentMapView;
     
     public BaseRenderer() {
         this.dataCache = DataCache.INSTANCE;
@@ -82,8 +82,8 @@ public abstract class BaseRenderer implements IChunkRenderer
         this.secondarySlopeOffsets.add(new BlockCoordIntPair(0, -2));
     }
     
-    protected boolean updateOptions(final ChunkMD chunkMd, final MapType mapType) {
-        this.currentMapType = mapType;
+    protected boolean updateOptions(final ChunkMD chunkMd, final MapView mapView) {
+        this.currentMapView = mapView;
         boolean updateNeeded = false;
         this.coreProperties = Journeymap.getClient().getCoreProperties();
         final long lastUpdate = Journeymap.getClient().getCoreProperties().lastModified();
@@ -99,7 +99,7 @@ public abstract class BaseRenderer implements IChunkRenderer
         if (chunkMd != null) {
             final Long lastChunkUpdate = (Long)chunkMd.getProperty("lastPropFileUpdate", this.lastPropFileUpdate);
             updateNeeded = true;
-            chunkMd.resetBlockData(this.getCurrentMapType());
+            chunkMd.resetBlockData(this.getCurrentMapView());
             chunkMd.setProperty("lastPropFileUpdate", lastChunkUpdate);
         }
         return updateNeeded;
@@ -197,8 +197,8 @@ public abstract class BaseRenderer implements IChunkRenderer
         return slopes;
     }
     
-    protected MapType getCurrentMapType() {
-        return this.currentMapType;
+    protected MapView getCurrentMapView() {
+        return this.currentMapView;
     }
     
     public abstract int getBlockHeight(final ChunkMD p0, final BlockPos p1);
@@ -270,39 +270,39 @@ public abstract class BaseRenderer implements IChunkRenderer
     }
     
     protected final Integer[][] getHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataInts(this.getCurrentMapType()).get(this.getKey("heights", vSlice));
+        return chunkMd.getBlockDataInts(this.getCurrentMapView()).get(this.getKey("heights", vSlice));
     }
     
     protected final boolean hasHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataInts(this.getCurrentMapType()).has(this.getKey("heights", vSlice));
+        return chunkMd.getBlockDataInts(this.getCurrentMapView()).has(this.getKey("heights", vSlice));
     }
     
     protected final void resetHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        chunkMd.getBlockDataInts(this.getCurrentMapType()).clear(this.getKey("heights", vSlice));
+        chunkMd.getBlockDataInts(this.getCurrentMapView()).clear(this.getKey("heights", vSlice));
     }
     
     protected final Float[][] getSlopes(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataFloats(this.getCurrentMapType()).get(this.getKey("slopes", vSlice));
+        return chunkMd.getBlockDataFloats(this.getCurrentMapView()).get(this.getKey("slopes", vSlice));
     }
     
     protected final boolean hasSlopes(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataFloats(this.getCurrentMapType()).has(this.getKey("slopes", vSlice));
+        return chunkMd.getBlockDataFloats(this.getCurrentMapView()).has(this.getKey("slopes", vSlice));
     }
     
     protected final void resetSlopes(final ChunkMD chunkMd, final Integer vSlice) {
-        chunkMd.getBlockDataFloats(this.getCurrentMapType()).clear(this.getKey("slopes", vSlice));
+        chunkMd.getBlockDataFloats(this.getCurrentMapView()).clear(this.getKey("slopes", vSlice));
     }
     
     protected final Integer[][] getFluidHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataInts(this.getCurrentMapType()).get(this.getKey("waterHeights", vSlice));
+        return chunkMd.getBlockDataInts(this.getCurrentMapView()).get(this.getKey("waterHeights", vSlice));
     }
     
     protected final boolean hasWaterHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        return chunkMd.getBlockDataInts(this.getCurrentMapType()).has(this.getKey("waterHeights", vSlice));
+        return chunkMd.getBlockDataInts(this.getCurrentMapView()).has(this.getKey("waterHeights", vSlice));
     }
     
     protected final void resetWaterHeights(final ChunkMD chunkMd, final Integer vSlice) {
-        chunkMd.getBlockDataInts(this.getCurrentMapType()).clear(this.getKey("waterHeights", vSlice));
+        chunkMd.getBlockDataInts(this.getCurrentMapView()).clear(this.getKey("waterHeights", vSlice));
     }
     
     public ChunkMD getOffsetChunk(final ChunkMD chunkMd, final int x, final int z, final BlockCoordIntPair offset) {
@@ -326,7 +326,9 @@ public abstract class BaseRenderer implements IChunkRenderer
     }
     
     public void paintBlock(final BufferedImage image, final int x, final int z, final int color) {
-        image.setRGB(x, z, 0xFF000000 | color);
+        if (image != null) {
+            image.setRGB(x, z, 0xFF000000 | color);
+        }
     }
     
     public void paintVoidBlock(final BufferedImage image, final int x, final int z) {

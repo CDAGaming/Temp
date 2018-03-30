@@ -3,7 +3,6 @@ package journeymap.client.render.draw;
 import net.minecraft.client.*;
 import journeymap.client.render.texture.*;
 import java.lang.ref.*;
-import net.minecraft.entity.*;
 import java.awt.geom.*;
 import journeymap.common.*;
 import journeymap.client.ui.minimap.*;
@@ -11,6 +10,8 @@ import journeymap.client.data.*;
 import net.minecraft.entity.player.*;
 import net.minecraft.scoreboard.*;
 import journeymap.client.render.map.*;
+import net.minecraft.entity.*;
+import net.minecraft.client.entity.*;
 import com.google.common.cache.*;
 
 public class DrawEntityStep implements DrawStep
@@ -28,25 +29,25 @@ public class DrawEntityStep implements DrawStep
     Minecraft minecraft;
     TextureImpl entityTexture;
     TextureImpl locatorTexture;
-    WeakReference<EntityLivingBase> entityLivingRef;
+    WeakReference<Entity> entityRef;
     String customName;
     String playerTeamName;
     Point2D screenPosition;
     float drawScale;
     
-    private DrawEntityStep(final EntityLivingBase entityLiving) {
+    private DrawEntityStep(final Entity entity) {
         this.showHeading = true;
         this.showName = true;
         this.minecraft = Minecraft.func_71410_x();
         this.drawScale = 1.0f;
-        this.entityLivingRef = new WeakReference<EntityLivingBase>(entityLiving);
+        this.entityRef = new WeakReference<Entity>(entity);
         this.hideSneaks = Journeymap.getClient().getCoreProperties().hideSneakingEntities.get();
     }
     
     public void update(final EntityDisplay entityDisplay, final TextureImpl locatorTexture, final TextureImpl entityTexture, final int color, final boolean showHeading, final boolean showName) {
-        final EntityLivingBase entityLiving = this.entityLivingRef.get();
-        if (showName && entityLiving != null) {
-            this.customName = DataCache.INSTANCE.getEntityDTO(entityLiving).customName;
+        final Entity entity = this.entityRef.get();
+        if (showName && entity != null) {
+            this.customName = DataCache.INSTANCE.getEntityDTO(entity).customName;
         }
         this.useDots = entityDisplay.isDots();
         this.color = color;
@@ -55,10 +56,10 @@ public class DrawEntityStep implements DrawStep
         this.drawScale = ((entityDisplay == EntityDisplay.SmallIcons) ? 0.6666667f : 1.0f);
         this.showHeading = showHeading;
         this.showName = showName;
-        if (entityLiving instanceof EntityPlayer) {
-            final Team team = entityLiving.func_96124_cp();
+        if (entity instanceof EntityPlayer) {
+            final Team team = entity.func_96124_cp();
             if (team != null) {
-                this.playerTeamName = ScorePlayerTeam.func_96667_a(entityLiving.func_96124_cp(), entityLiving.func_70005_c_());
+                this.playerTeamName = ScorePlayerTeam.func_96667_a(entity.func_96124_cp(), entity.func_70005_c_());
             }
             else {
                 this.playerTeamName = null;
@@ -71,23 +72,33 @@ public class DrawEntityStep implements DrawStep
         if (pass == Pass.Tooltip) {
             return;
         }
-        final EntityLivingBase entityLiving = this.entityLivingRef.get();
+        final Entity entity = this.entityRef.get();
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player == null) {
+            return;
+        }
         if (pass == Pass.Object) {
-            if (entityLiving == null || entityLiving.field_70128_L || entityLiving.func_98034_c((EntityPlayer)this.minecraft.field_71439_g) || !entityLiving.field_70175_ag || (this.hideSneaks && entityLiving.func_70093_af())) {
+            if (entity == null || entity.field_70128_L || entity.func_82150_aj() || entity.func_98034_c((EntityPlayer)player) || !entity.field_70175_ag || (this.hideSneaks && entity.func_70093_af())) {
                 this.screenPosition = null;
                 return;
             }
-            this.screenPosition = gridRenderer.getPixel(entityLiving.field_70165_t, entityLiving.field_70161_v);
+            this.screenPosition = gridRenderer.getPixel(entity.field_70165_t, entity.field_70161_v);
         }
         if (this.screenPosition != null) {
-            final double heading = entityLiving.field_70759_as;
+            double heading;
+            if (entity instanceof EntityLivingBase) {
+                heading = ((EntityLivingBase)entity).field_70759_as;
+            }
+            else {
+                heading = entity.field_70177_z;
+            }
             final double drawX = this.screenPosition.getX() + xOffset;
             final double drawY = this.screenPosition.getY() + yOffset;
             float alpha = 1.0f;
-            if (entityLiving.field_70163_u > this.minecraft.field_71439_g.field_70163_u) {
-                alpha = 1.0f - Math.max(0.1f, (float)((entityLiving.field_70163_u - this.minecraft.field_71439_g.field_70163_u) / 32.0));
+            if (entity.field_70163_u > player.field_70163_u) {
+                alpha = 1.0f - Math.max(0.1f, (float)((entity.field_70163_u - player.field_70163_u) / 32.0));
             }
-            if (entityLiving instanceof EntityPlayer) {
+            if (entity instanceof EntityPlayer) {
                 this.drawPlayer(pass, drawX, drawY, gridRenderer, alpha, heading, fontScale, rotation);
             }
             else {
@@ -97,8 +108,8 @@ public class DrawEntityStep implements DrawStep
     }
     
     private void drawPlayer(final Pass pass, final double drawX, final double drawY, final GridRenderer gridRenderer, final float alpha, final double heading, final double fontScale, final double rotation) {
-        final EntityLivingBase entityLiving = this.entityLivingRef.get();
-        if (entityLiving == null) {
+        final Entity entity = this.entityRef.get();
+        if (entity == null) {
             return;
         }
         if (pass == Pass.Object) {
@@ -108,7 +119,7 @@ public class DrawEntityStep implements DrawStep
             if (this.entityTexture != null) {
                 if (this.useDots) {
                     boolean flip = false;
-                    this.elevationOffset = (int)(DataCache.getPlayer().posY - entityLiving.field_70163_u);
+                    this.elevationOffset = (int)(DataCache.getPlayer().posY - entity.field_70163_u);
                     if (this.elevationOffset < -1 || this.elevationOffset > 1) {
                         flip = (this.elevationOffset < -1);
                         DrawUtil.drawColoredEntity(drawX, drawY, this.entityTexture, this.color, alpha, this.drawScale, flip ? (-rotation + 180.0) : (-rotation));
@@ -126,14 +137,14 @@ public class DrawEntityStep implements DrawStep
                 DrawUtil.drawLabel(this.playerTeamName, labelPoint.getX(), labelPoint.getY(), DrawUtil.HAlign.Center, DrawUtil.VAlign.Below, 0, 0.8f, 16777215, 1.0f, fontScale, false, rotation);
             }
             else {
-                DrawUtil.drawLabel(entityLiving.func_70005_c_(), labelPoint.getX(), labelPoint.getY(), DrawUtil.HAlign.Center, DrawUtil.VAlign.Below, 0, 0.8f, 65280, 1.0f, fontScale, false, rotation);
+                DrawUtil.drawLabel(entity.func_70005_c_(), labelPoint.getX(), labelPoint.getY(), DrawUtil.HAlign.Center, DrawUtil.VAlign.Below, 0, 0.8f, 65280, 1.0f, fontScale, false, rotation);
             }
         }
     }
     
     private void drawCreature(final Pass pass, final double drawX, final double drawY, final GridRenderer gridRenderer, final float alpha, final double heading, final double fontScale, final double rotation) {
-        final EntityLivingBase entityLiving = this.entityLivingRef.get();
-        if (entityLiving == null) {
+        final Entity entity = this.entityRef.get();
+        if (entity == null) {
             return;
         }
         if (pass == Pass.Object && this.locatorTexture != null) {
@@ -147,7 +158,7 @@ public class DrawEntityStep implements DrawStep
         if (pass == Pass.Object && this.entityTexture != null) {
             if (this.useDots) {
                 boolean flip = false;
-                this.elevationOffset = (int)(DataCache.getPlayer().posY - entityLiving.field_70163_u);
+                this.elevationOffset = (int)(DataCache.getPlayer().posY - entity.field_70163_u);
                 if (this.elevationOffset < -1 || this.elevationOffset > 1) {
                     flip = (this.elevationOffset < -1);
                     DrawUtil.drawColoredEntity(drawX, drawY, this.entityTexture, this.color, alpha, this.drawScale, flip ? (-rotation + 180.0) : (-rotation));
@@ -174,10 +185,10 @@ public class DrawEntityStep implements DrawStep
         labelFg = 16777215;
     }
     
-    public static class SimpleCacheLoader extends CacheLoader<EntityLivingBase, DrawEntityStep>
+    public static class SimpleCacheLoader extends CacheLoader<Entity, DrawEntityStep>
     {
-        public DrawEntityStep load(final EntityLivingBase entityLiving) throws Exception {
-            return new DrawEntityStep(entityLiving, null);
+        public DrawEntityStep load(final Entity entity) throws Exception {
+            return new DrawEntityStep(entity, null);
         }
     }
 }

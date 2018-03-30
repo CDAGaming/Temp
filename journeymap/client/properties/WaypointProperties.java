@@ -4,7 +4,6 @@ import journeymap.common.properties.config.*;
 
 public class WaypointProperties extends ClientPropertiesBase implements Comparable<WaypointProperties>
 {
-    public final BooleanField managerEnabled;
     public final BooleanField beaconEnabled;
     public final BooleanField showTexture;
     public final BooleanField showStaticBeam;
@@ -20,7 +19,6 @@ public class WaypointProperties extends ClientPropertiesBase implements Comparab
     public final BooleanField createDeathpoints;
     
     public WaypointProperties() {
-        this.managerEnabled = new BooleanField(ClientCategory.Waypoint, "jm.waypoint.enable_manager", true, true);
         this.beaconEnabled = new BooleanField(ClientCategory.WaypointBeacon, "jm.waypoint.enable_beacons", true, true);
         this.showTexture = new BooleanField(ClientCategory.WaypointBeacon, "jm.waypoint.show_texture", true);
         this.showStaticBeam = new BooleanField(ClientCategory.WaypointBeacon, "jm.waypoint.show_static_beam", true);

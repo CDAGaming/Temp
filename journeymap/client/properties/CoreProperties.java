@@ -50,6 +50,7 @@ public class CoreProperties extends ClientPropertiesBase implements Comparable<C
     public final IntegerField maxMobsData;
     public final IntegerField maxPlayersData;
     public final IntegerField maxVillagersData;
+    public final IntegerField maxVehiclesData;
     public final BooleanField hideSneakingEntities;
     public final IntegerField radarLateralDistance;
     public final IntegerField radarVerticalDistance;
@@ -66,6 +67,7 @@ public class CoreProperties extends ClientPropertiesBase implements Comparable<C
     public final StringField colorVillager;
     public final StringField colorPlayer;
     public final StringField colorSelf;
+    public final StringField colorVehicle;
     public final BooleanField verboseColorPalette;
     private transient HashMap<StringField, Integer> mobColors;
     
@@ -106,6 +108,7 @@ public class CoreProperties extends ClientPropertiesBase implements Comparable<C
         this.maxMobsData = new IntegerField(ClientCategory.Advanced, "jm.common.radar_max_mobs", 1, 128, 32);
         this.maxPlayersData = new IntegerField(ClientCategory.Advanced, "jm.common.radar_max_players", 1, 128, 32);
         this.maxVillagersData = new IntegerField(ClientCategory.Advanced, "jm.common.radar_max_villagers", 1, 128, 32);
+        this.maxVehiclesData = new IntegerField(ClientCategory.Advanced, "jm.common.radar_max_vehicles", 1, 128, 32);
         this.hideSneakingEntities = new BooleanField(ClientCategory.Advanced, "jm.common.radar_hide_sneaking", true);
         this.radarLateralDistance = new IntegerField(ClientCategory.Advanced, "jm.common.radar_lateral_distance", 16, 512, 64);
         this.radarVerticalDistance = new IntegerField(ClientCategory.Advanced, "jm.common.radar_vertical_distance", 8, 256, 16);
@@ -122,6 +125,7 @@ public class CoreProperties extends ClientPropertiesBase implements Comparable<C
         this.colorVillager = new StringField(Category.Hidden, "jm.common.radar_color_villager", null, "#88e188").pattern("^#[a-f0-9]{6}$");
         this.colorPlayer = new StringField(Category.Hidden, "jm.common.radar_color_player", null, "#ffffff").pattern("^#[a-f0-9]{6}$");
         this.colorSelf = new StringField(Category.Hidden, "jm.common.radar_color_self", null, "#0000ff").pattern("^#[a-f0-9]{6}$");
+        this.colorVehicle = new StringField(Category.Hidden, "jm.common.radar_color_vehicle", null, "#00ff00").pattern("^#[a-f0-9]{6}$");
         this.verboseColorPalette = new BooleanField(Category.Hidden, "", false);
         this.mobColors = new HashMap<StringField, Integer>(6);
     }

@@ -50,7 +50,7 @@ public enum FlowerBlockProxy implements IBlockColorProxy
                 }
             }
             catch (Exception e) {
-                Journeymap.getLogger().error("Error checking FlowerPot: " + e, (Object)LogFormatter.toPartialString(e));
+                Journeymap.getLogger().error("Error checking FlowerPot: " + LogFormatter.toPartialString(e));
                 this.enabled = false;
             }
         }

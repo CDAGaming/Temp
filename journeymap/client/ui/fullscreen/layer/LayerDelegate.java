@@ -17,8 +17,8 @@ import journeymap.client.cartography.render.*;
 
 public class LayerDelegate
 {
-    long lastClick;
-    BlockPos lastBlockPos;
+    private long lastClick;
+    private BlockPos lastBlockPos;
     private List<DrawStep> drawSteps;
     private List<Layer> layers;
     
@@ -74,8 +74,8 @@ public class LayerDelegate
             final ChunkRenderController crc = Journeymap.getClient().getChunkRenderController();
             if (crc != null) {
                 final ChunkPos chunkCoord = chunkMD.getCoord();
-                final RegionCoord rCoord = RegionCoord.fromChunkPos(FileHandler.getJMWorldDir(mc), gridRenderer.getMapType(), chunkCoord.field_77276_a, chunkCoord.field_77275_b);
-                final BaseRenderer chunkRenderer = crc.getRenderer(rCoord, gridRenderer.getMapType(), chunkMD);
+                final RegionCoord rCoord = RegionCoord.fromChunkPos(FileHandler.getJMWorldDir(mc), gridRenderer.getMapView(), chunkCoord.field_77276_a, chunkCoord.field_77275_b);
+                final BaseRenderer chunkRenderer = crc.getRenderer(rCoord, gridRenderer.getMapView(), chunkMD);
                 final int blockY = chunkRenderer.getBlockHeight(chunkMD, seaLevel);
                 return new BlockPos(seaLevel.func_177958_n(), blockY, seaLevel.func_177952_p());
             }

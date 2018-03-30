@@ -16,9 +16,6 @@ import org.apache.logging.log4j.core.*;
 import net.minecraftforge.common.*;
 import net.minecraft.client.*;
 import journeymap.client.*;
-import journeymap.client.feature.*;
-import journeymap.client.properties.*;
-import journeymap.common.properties.*;
 import java.util.*;
 import journeymap.common.properties.config.*;
 import java.io.*;
@@ -89,7 +86,7 @@ public class JMLogger
     
     public static String getPropertiesSummary() {
         final LinkedHashMap<String, String> props = new LinkedHashMap<String, String>();
-        props.put("Version", JourneymapClient.MOD_NAME + ", built with Forge " + "14.23.0.2491");
+        props.put("Version", JourneymapClient.MOD_NAME + ", built with Forge " + "14.23.1.2555");
         props.put("Forge", ForgeVersion.getVersion());
         final List<String> envProps = Arrays.asList("os.name, os.arch, java.version, user.country, user.language");
         StringBuilder sb = new StringBuilder();
@@ -105,12 +102,6 @@ public class JMLogger
                 sb.append(LogFormatter.LINEBREAK);
             }
             sb.append(prop.getKey()).append(": ").append(prop.getValue());
-        }
-        sb.append(LogFormatter.LINEBREAK).append(FeatureManager.getPolicyDetails());
-        final JourneymapClient jm = Journeymap.getClient();
-        final List<? extends PropertiesBase> configs = Arrays.asList(Journeymap.getClient().getMiniMapProperties1(), Journeymap.getClient().getMiniMapProperties2(), Journeymap.getClient().getFullMapProperties(), Journeymap.getClient().getWaypointProperties(), Journeymap.getClient().getWebMapProperties(), Journeymap.getClient().getCoreProperties());
-        for (final PropertiesBase config : configs) {
-            sb.append(LogFormatter.LINEBREAK).append(config);
         }
         return sb.toString();
     }

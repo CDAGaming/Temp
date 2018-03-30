@@ -1,6 +1,6 @@
 package journeymap.client.api.util;
 
-import journeymap.client.api.display.*;
+import journeymap.common.api.feature.*;
 import net.minecraft.util.math.*;
 import java.awt.geom.*;
 import javax.annotation.*;
@@ -9,18 +9,18 @@ import com.google.common.base.*;
 
 public final class UIState
 {
-    public final Context.UI ui;
+    public final Feature.Display ui;
     public final boolean active;
     public final int dimension;
     public final int zoom;
-    public final Context.MapType mapType;
+    public final Feature.MapType mapType;
     public final BlockPos mapCenter;
     public final Integer chunkY;
     public final AxisAlignedBB blockBounds;
     public final Rectangle2D.Double displayBounds;
     public final double blockSize;
     
-    public UIState(final Context.UI ui, final boolean active, final int dimension, final int zoom, @Nullable final Context.MapType mapType, @Nullable final BlockPos mapCenter, @Nullable final Integer chunkY, @Nullable final AxisAlignedBB blockBounds, @Nullable final Rectangle2D.Double displayBounds) {
+    public UIState(final Feature.Display ui, final boolean active, final int dimension, final int zoom, @Nullable final Feature.MapType mapType, @Nullable final BlockPos mapCenter, @Nullable final Integer chunkY, @Nullable final AxisAlignedBB blockBounds, @Nullable final Rectangle2D.Double displayBounds) {
         this.ui = ui;
         this.active = active;
         this.dimension = dimension;
@@ -33,9 +33,9 @@ public final class UIState
         this.blockSize = Math.pow(2.0, zoom);
     }
     
-    public static UIState newInactive(final Context.UI ui, final Minecraft minecraft) {
+    public static UIState newInactive(final Feature.Display ui, final Minecraft minecraft) {
         final BlockPos center = (minecraft.field_71441_e == null) ? new BlockPos(0, 68, 0) : minecraft.field_71441_e.func_175694_M();
-        return new UIState(ui, false, 0, 0, Context.MapType.Day, center, null, null, null);
+        return new UIState(ui, false, 0, 0, Feature.MapType.Day, center, null, null, null);
     }
     
     public static UIState newInactive(final UIState priorState) {

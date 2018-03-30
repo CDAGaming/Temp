@@ -1,10 +1,10 @@
 package journeymap.client.service;
 
-import net.minecraftforge.fml.client.*;
 import journeymap.common.*;
 import se.rupy.http.*;
-import net.minecraft.client.*;
 import net.minecraft.world.*;
+import net.minecraftforge.fml.client.*;
+import journeymap.common.api.feature.*;
 import journeymap.client.model.*;
 import journeymap.client.io.*;
 import journeymap.common.log.*;
@@ -27,8 +27,7 @@ public class ActionService extends BaseService
     public void filter(final Event event) throws Event, Exception {
         final Query query = event.query();
         query.parse();
-        final Minecraft minecraft = FMLClientHandler.instance().getClient();
-        final World world = (World)minecraft.field_71441_e;
+        final World world = Journeymap.clientWorld();
         if (world == null) {
             this.throwEventException(503, "World not connected", event, false);
         }
@@ -50,36 +49,32 @@ public class ActionService extends BaseService
     
     private void saveMap(final Event event) throws Event, Exception {
         final Query query = event.query();
-        final Minecraft minecraft = FMLClientHandler.instance().getClient();
-        final World world = (World)minecraft.field_71441_e;
         try {
-            final File worldDir = FileHandler.getJMWorldDir(minecraft);
+            final File worldDir = FileHandler.getJMWorldDir(FMLClientHandler.instance().getClient());
             if (!worldDir.exists() || !worldDir.isDirectory()) {
                 final String error = "World unknown: " + worldDir.getAbsolutePath();
                 this.throwEventException(500, error, event, true);
             }
             Integer vSlice = this.getParameter(query, "depth", (Integer)null);
             final int dimension = this.getParameter(query, "dim", Integer.valueOf(0));
-            final String mapTypeString = this.getParameter(query, "mapType", MapType.Name.day.name());
-            MapType mapType = null;
-            MapType.Name mapTypeName = null;
+            final String mapTypeString = this.getParameter(query, "mapType", Feature.MapType.Day.name());
+            Feature.MapType mapType = null;
             try {
-                mapTypeName = MapType.Name.valueOf(mapTypeString);
+                mapType = Feature.MapType.valueOf(mapTypeString);
             }
             catch (Exception e) {
                 final String error2 = "Bad request: mapType=" + mapTypeString;
                 this.throwEventException(400, error2, event, true);
             }
-            if (mapTypeName != MapType.Name.underground) {
+            if (mapType != Feature.MapType.Underground) {
                 vSlice = null;
             }
-            mapType = MapType.from(mapTypeName, vSlice, dimension);
-            final Boolean hardcore = world.func_72912_H().func_76093_s();
-            if (mapType.isUnderground() && hardcore) {
-                final String error2 = "Cave mapping on hardcore servers is not allowed";
+            final MapView mapView = MapView.from(mapType, vSlice, dimension);
+            if (!mapView.isAllowed()) {
+                final String error2 = "Map type is not currently allowed";
                 this.throwEventException(403, error2, event, true);
             }
-            final MapSaver mapSaver = new MapSaver(worldDir, mapType);
+            final MapSaver mapSaver = new MapSaver(worldDir, mapView);
             if (!mapSaver.isValid()) {
                 this.throwEventException(403, "No image files to save.", event, true);
             }

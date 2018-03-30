@@ -16,6 +16,7 @@ public abstract class InGameMapProperties extends MapProperties
     public final BooleanField showVillagers;
     public final BooleanField showPets;
     public final BooleanField showPlayers;
+    public final BooleanField showVehicles;
     public final IntegerField fontScale;
     public final BooleanField showWaypointLabels;
     public final BooleanField locationFormatVerbose;
@@ -31,6 +32,7 @@ public abstract class InGameMapProperties extends MapProperties
         this.showVillagers = new BooleanField(Category.Inherit, "jm.common.show_villagers", true);
         this.showPets = new BooleanField(Category.Inherit, "jm.common.show_pets", true);
         this.showPlayers = new BooleanField(Category.Inherit, "jm.common.show_players", true);
+        this.showVehicles = new BooleanField(Category.Inherit, "jm.common.show_vehicles", true);
         this.fontScale = new IntegerField(Category.Inherit, "jm.common.font_scale", 1, 4, 1);
         this.showWaypointLabels = new BooleanField(Category.Inherit, "jm.minimap.show_waypointlabels", true);
         this.locationFormatVerbose = new BooleanField(Category.Inherit, "jm.common.location_format_verbose", true);

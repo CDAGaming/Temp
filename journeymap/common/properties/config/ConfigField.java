@@ -166,16 +166,22 @@ public abstract class ConfigField<T>
     }
     
     public <E extends Enum> E getEnumAttr(final String attrName, final Class<E> enumType) {
-        final Object value = this.attributes.get(attrName);
-        if (value instanceof Enum) {
-            return (E)value;
-        }
-        if (value instanceof String) {
-            try {
-                return Enum.valueOf(enumType, (String)value);
+        if (!Strings.isNullOrEmpty(attrName) && enumType != null) {
+            final Object value = this.attributes.get(attrName);
+            if (value instanceof Enum) {
+                return (E)value;
             }
-            catch (Exception e) {
-                Journeymap.getLogger().warn(String.format("Couldn't get %s as Enum %s with value %s: %s", attrName, enumType, value, LogFormatter.toString(e)));
+            if (value instanceof String) {
+                try {
+                    for (final Object enumValue : EnumSet.allOf(enumType)) {
+                        if (((Enum)enumValue).name().equalsIgnoreCase((String)value)) {
+                            return (E)enumValue;
+                        }
+                    }
+                }
+                catch (Exception e) {
+                    Journeymap.getLogger().warn(String.format("Couldn't get %s as Enum %s with value %s: %s", attrName, enumType, value, LogFormatter.toString(e)));
+                }
             }
         }
         this.setToDefault();

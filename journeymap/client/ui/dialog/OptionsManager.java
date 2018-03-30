@@ -3,7 +3,6 @@ package journeymap.client.ui.dialog;
 import journeymap.common.*;
 import journeymap.client.*;
 import journeymap.client.forge.event.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.client.ui.option.*;
 import journeymap.client.log.*;
 import net.minecraft.client.*;
@@ -85,7 +84,7 @@ public class OptionsManager extends JmUI
                 final String name = String.format("%s %s", Constants.getString("jm.minimap.preview"), "1");
                 final String tooltip = Constants.getString("jm.minimap.preview.tooltip", KeyEventHandler.INSTANCE.kbMinimapPreset.getDisplayName());
                 (this.minimap1PreviewButton = new CheckBox(name, false)).setTooltip(tooltip);
-                if (FMLClientHandler.instance().getClient().field_71441_e == null) {
+                if (Journeymap.clientWorld() == null) {
                     this.minimap1PreviewButton.setEnabled(false);
                 }
             }
@@ -93,7 +92,7 @@ public class OptionsManager extends JmUI
                 final String name = String.format("%s %s", Constants.getString("jm.minimap.preview"), "2");
                 final String tooltip = Constants.getString("jm.minimap.preview.tooltip", KeyEventHandler.INSTANCE.kbMinimapPreset.getDisplayName());
                 (this.minimap2PreviewButton = new CheckBox(name, false)).setTooltip(tooltip);
-                if (FMLClientHandler.instance().getClient().field_71441_e == null) {
+                if (Journeymap.clientWorld() == null) {
                     this.minimap2PreviewButton.setEnabled(false);
                 }
             }
@@ -126,13 +125,13 @@ public class OptionsManager extends JmUI
                         final ResetButton resetButton = new ResetButton(category);
                         final SlotMetadata resetSlotMetadata = new SlotMetadata(resetButton, 1);
                         if (category == ClientCategory.MiniMap1) {
-                            if (FMLClientHandler.instance().getClient().field_71441_e != null) {
+                            if (Journeymap.clientWorld() != null) {
                                 categorySlot2.getAllChildMetadata().add(new SlotMetadata(this.minimap1PreviewButton, 4));
                             }
                             categorySlot2.getAllChildMetadata().add(new SlotMetadata(this.editGridMinimap1Button, 3));
                         }
                         else if (category == ClientCategory.MiniMap2) {
-                            if (FMLClientHandler.instance().getClient().field_71441_e != null) {
+                            if (Journeymap.clientWorld() != null) {
                                 categorySlot2.getAllChildMetadata().add(new SlotMetadata(this.minimap2PreviewButton, 4));
                             }
                             categorySlot2.getAllChildMetadata().add(new SlotMetadata(this.editGridMinimap2Button, 3));
@@ -180,7 +179,7 @@ public class OptionsManager extends JmUI
     }
     
     @Override
-    public void func_73863_a(final int x, final int y, final float par3) {
+    public void func_73863_a(final int mouseX, final int mouseY, final float par3) {
         try {
             if (this.forceMinimapUpdate) {
                 if (this.minimap1PreviewButton.isActive()) {
@@ -190,14 +189,14 @@ public class OptionsManager extends JmUI
                     UIManager.INSTANCE.switchMiniMapPreset(2);
                 }
             }
-            if (this.field_146297_k.field_71441_e != null) {
+            if (Journeymap.clientWorld() != null) {
                 this.updateRenderStats();
             }
             final String[] lastTooltip = this.optionsListPane.lastTooltip;
             final long lastTooltipTime = this.optionsListPane.lastTooltipTime;
             this.optionsListPane.lastTooltip = null;
-            this.optionsListPane.func_148128_a(x, y, par3);
-            super.func_73863_a(x, y, par3);
+            this.optionsListPane.func_148128_a(mouseX, mouseY, par3);
+            super.func_73863_a(mouseX, mouseY, par3);
             if (this.previewMiniMap()) {
                 UIManager.INSTANCE.getMiniMap().drawMap(true);
                 RenderHelper.func_74518_a();
@@ -206,7 +205,7 @@ public class OptionsManager extends JmUI
                 this.optionsListPane.lastTooltipTime = lastTooltipTime;
                 if (System.currentTimeMillis() - this.optionsListPane.lastTooltipTime > this.optionsListPane.hoverDelay) {
                     final Button button = this.optionsListPane.lastTooltipMetadata.getButton();
-                    this.drawHoveringText(this.optionsListPane.lastTooltip, x, button.getBottomY() + 15);
+                    this.drawHoveringText(this.optionsListPane.lastTooltip, mouseX, button.getBottomY() + 15);
                 }
             }
         }
@@ -410,7 +409,7 @@ public class OptionsManager extends JmUI
     protected void closeAndReturn() {
         Journeymap.getClient().getCoreProperties().optionsManagerViewed.set(Journeymap.JM_VERSION.toString());
         Journeymap.getClient().saveConfigProperties();
-        if (this.field_146297_k.field_71441_e != null) {
+        if (Journeymap.clientWorld() != null) {
             UIManager.INSTANCE.getMiniMap().setMiniMapProperties(Journeymap.getClient().getMiniMapProperties(this.inGameMinimapId));
             for (final Category category : this.changedCategories) {
                 if (category == ClientCategory.MiniMap1) {

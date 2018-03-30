@@ -4,7 +4,6 @@ import java.nio.charset.*;
 import journeymap.common.version.*;
 import java.io.*;
 import journeymap.common.properties.config.*;
-import journeymap.client.model.*;
 import journeymap.common.*;
 import com.google.common.io.*;
 import journeymap.common.log.*;
@@ -30,7 +29,7 @@ public abstract class PropertiesBase
     }
     
     public Gson getGson(final boolean verbose) {
-        final GsonBuilder gb = new GsonBuilder().setPrettyPrinting().serializeNulls().registerTypeAdapter((Type)BooleanField.class, (Object)new GsonHelper.BooleanFieldSerializer(verbose)).registerTypeAdapter((Type)IntegerField.class, (Object)new GsonHelper.IntegerFieldSerializer(verbose)).registerTypeAdapter((Type)StringField.class, (Object)new GsonHelper.StringFieldSerializer(verbose)).registerTypeAdapter((Type)EnumField.class, (Object)new GsonHelper.EnumFieldSerializer(verbose)).registerTypeAdapter((Type)CategorySet.class, (Object)new GsonHelper.CategorySetSerializer(verbose)).registerTypeAdapter((Type)Version.class, (Object)new GsonHelper.VersionSerializer(verbose)).registerTypeAdapter((Type)GridSpec.class, (Object)new GsonHelper.GridSpecSerializer(verbose));
+        final GsonBuilder gb = verbose ? GsonHelper.BUILDER_VERBOSE() : GsonHelper.BUILDER_TERSE();
         final List<ExclusionStrategy> exclusionStrategies = this.getExclusionStrategies(verbose);
         if (exclusionStrategies != null && !exclusionStrategies.isEmpty()) {
             gb.setExclusionStrategies((ExclusionStrategy[])exclusionStrategies.toArray(new ExclusionStrategy[exclusionStrategies.size()]));

@@ -1,10 +1,11 @@
 package journeymap.client.render.draw;
 
+import journeymap.client.api.display.*;
 import java.awt.geom.*;
 import journeymap.client.api.util.*;
 import journeymap.client.render.map.*;
 import journeymap.client.api.model.*;
-import journeymap.client.api.display.*;
+import journeymap.common.api.feature.*;
 import java.util.*;
 import com.google.common.base.*;
 import javax.annotation.*;
@@ -78,7 +79,7 @@ public abstract class BaseOverlayDrawStep<T extends Overlay> implements OverlayD
             draggingDone = this.dragging;
             this.dragging = false;
         }
-        if (draggingDone || uiState.ui == Context.UI.Minimap || this.overlay.getNeedsRerender() || !Objects.equals(uiState, this.lastUiState)) {
+        if (draggingDone || uiState.ui == Feature.Display.Minimap || this.overlay.getNeedsRerender() || !Objects.equals(uiState, this.lastUiState)) {
             this.lastUiState = uiState;
             this.updatePositions(gridRenderer, rotation);
             this.overlay.clearFlagForRerender();

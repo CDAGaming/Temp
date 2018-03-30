@@ -21,7 +21,7 @@ import journeymap.client.render.texture.*;
 public class ImageHolder implements IThreadedFileIO
 {
     static final Logger logger;
-    final MapType mapType;
+    final MapView mapView;
     final Path imagePath;
     final int imageSize;
     boolean blank;
@@ -32,12 +32,12 @@ public class ImageHolder implements IThreadedFileIO
     private boolean debug;
     private HashSet<ChunkPos> updatedChunks;
     
-    ImageHolder(final MapType mapType, final File imageFile, final int imageSize) {
+    ImageHolder(final MapView mapView, final File imageFile, final int imageSize) {
         this.blank = true;
         this.dirty = true;
         this.writeLock = new ReentrantLock();
         this.updatedChunks = new HashSet<ChunkPos>();
-        this.mapType = mapType;
+        this.mapView = mapView;
         this.imagePath = imageFile.toPath();
         this.imageSize = imageSize;
         this.debug = ImageHolder.logger.isEnabled(Level.DEBUG);
@@ -48,8 +48,8 @@ public class ImageHolder implements IThreadedFileIO
         return this.imagePath.toFile();
     }
     
-    MapType getMapType() {
-        return this.mapType;
+    MapView getMapType() {
+        return this.mapView;
     }
     
     BufferedImage getImage() {
@@ -225,7 +225,7 @@ public class ImageHolder implements IThreadedFileIO
     
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper((Object)this).add("mapType", (Object)this.mapType).add("textureId", (Object)((this.texture == null) ? null : (this.texture.isBound() ? this.texture.getGlTextureId(false) : -1))).add("dirty", this.dirty).add("imagePath", (Object)this.imagePath).toString();
+        return MoreObjects.toStringHelper((Object)this).add("mapView", (Object)this.mapView).add("textureId", (Object)((this.texture == null) ? null : (this.texture.isBound() ? this.texture.getGlTextureId(false) : -1))).add("dirty", this.dirty).add("imagePath", (Object)this.imagePath).toString();
     }
     
     public void clear() {

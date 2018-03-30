@@ -6,12 +6,13 @@ import journeymap.client.properties.*;
 import journeymap.common.*;
 import java.io.*;
 import journeymap.client.render.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import java.awt.image.*;
 import org.apache.logging.log4j.*;
 import journeymap.common.log.*;
 import journeymap.client.model.*;
 import net.minecraft.util.math.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.client.cartography.color.*;
 
 public class TopoRenderer extends BaseRenderer implements IChunkRenderer
@@ -40,9 +41,9 @@ public class TopoRenderer extends BaseRenderer implements IChunkRenderer
     }
     
     @Override
-    protected boolean updateOptions(final ChunkMD chunkMd, final MapType mapType) {
+    protected boolean updateOptions(final ChunkMD chunkMd, final MapView mapView) {
         boolean needUpdate = false;
-        if (super.updateOptions(chunkMd, mapType)) {
+        if (super.updateOptions(chunkMd, mapView)) {
             double worldHeight = 256.0;
             if (chunkMd != null) {
                 worldHeight = chunkMd.getWorld().func_72800_K();
@@ -66,7 +67,7 @@ public class TopoRenderer extends BaseRenderer implements IChunkRenderer
                 final Long lastUpdate = (Long)chunkMd.getProperty("lastTopoPropFileUpdate", this.lastTopoFileUpdate);
                 if (needUpdate || lastUpdate < this.lastTopoFileUpdate) {
                     needUpdate = true;
-                    chunkMd.resetBlockData(this.getCurrentMapType());
+                    chunkMd.resetBlockData(this.getCurrentMapView());
                 }
                 chunkMd.setProperty("lastTopoPropFileUpdate", this.lastTopoFileUpdate);
             }
@@ -80,9 +81,13 @@ public class TopoRenderer extends BaseRenderer implements IChunkRenderer
         if (this.landPalette == null || this.landPalette.length < 1 || this.waterPalette == null || this.waterPalette.length < 1) {
             return false;
         }
+        final int dimension = chunkMd.getDimension();
+        if (!ClientFeatures.instance().isAllowed(Feature.MapType.Topo, dimension)) {
+            return false;
+        }
         try {
             timer.start();
-            this.updateOptions(chunkMd, MapType.from(MapType.Name.topo, null, chunkMd.getDimension()));
+            this.updateOptions(chunkMd, MapView.from(Feature.MapType.Topo, null, chunkMd.getDimension()));
             if (!this.hasSlopes(chunkMd, null)) {
                 this.populateSlopes(chunkMd);
             }
@@ -236,7 +241,7 @@ public class TopoRenderer extends BaseRenderer implements IChunkRenderer
     
     @Override
     public int getBlockHeight(final ChunkMD chunkMd, final BlockPos blockPos) {
-        return FMLClientHandler.instance().getClient().field_71441_e.func_175726_f(blockPos).func_177440_h(blockPos).func_177956_o();
+        return Journeymap.clientWorld().func_175726_f(blockPos).func_177440_h(blockPos).func_177956_o();
     }
     
     protected boolean paintContour(final BufferedImage chunkImage, final ChunkMD chunkMd, final BlockMD topBlockMd, final int x, final int y, final int z) {
@@ -283,14 +288,14 @@ public class TopoRenderer extends BaseRenderer implements IChunkRenderer
     }
     
     protected final Boolean[][] getShore(final ChunkMD chunkMd) {
-        return chunkMd.getBlockDataBooleans(this.getCurrentMapType()).get("isShore");
+        return chunkMd.getBlockDataBooleans(this.getCurrentMapView()).get("isShore");
     }
     
     protected final boolean hasShore(final ChunkMD chunkMd) {
-        return chunkMd.getBlockDataBooleans(this.getCurrentMapType()).has("isShore");
+        return chunkMd.getBlockDataBooleans(this.getCurrentMapView()).has("isShore");
     }
     
     protected final void resetShore(final ChunkMD chunkMd) {
-        chunkMd.getBlockDataBooleans(this.getCurrentMapType()).clear("isShore");
+        chunkMd.getBlockDataBooleans(this.getCurrentMapView()).clear("isShore");
     }
 }

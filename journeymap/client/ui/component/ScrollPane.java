@@ -15,7 +15,6 @@ public class ScrollPane extends GuiSlot
     public int paneHeight;
     public Point2D.Double origin;
     protected Scrollable selected;
-    private Integer frameColor;
     private List<? extends Scrollable> items;
     private Minecraft mc;
     private int _mouseX;
@@ -23,6 +22,10 @@ public class ScrollPane extends GuiSlot
     private boolean showFrame;
     private int firstVisibleIndex;
     private int lastVisibleIndex;
+    public int bgColor;
+    public float bgAlpha;
+    public int frameColor;
+    public float frameAlpha;
     
     public ScrollPane(final Minecraft mc, final int width, final int height, final List<? extends Scrollable> items, final int itemHeight, final int itemGap) {
         super(mc, width, height, 16, height, itemHeight + itemGap);
@@ -30,8 +33,11 @@ public class ScrollPane extends GuiSlot
         this.paneHeight = 0;
         this.origin = new Point2D.Double();
         this.selected = null;
-        this.frameColor = new Color(-6250336).getRGB();
         this.showFrame = true;
+        this.bgColor = 0;
+        this.bgAlpha = 0.4f;
+        this.frameColor = new Color(-6250336).getRGB();
+        this.frameAlpha = 1.0f;
         this.items = items;
         this.paneWidth = width;
         this.paneHeight = height;
@@ -57,7 +63,7 @@ public class ScrollPane extends GuiSlot
         this.origin.setLocation(x, y);
     }
     
-    protected int func_148127_b() {
+    public int func_148127_b() {
         return this.items.size();
     }
     
@@ -99,7 +105,11 @@ public class ScrollPane extends GuiSlot
                     continue;
                 }
                 else {
-                    item.clickScrollable(this.mc, mouseX, mouseY);
+                    if (mouseX >= item.getX() && mouseX <= item.getX() + item.getWidth() && mouseY >= item.getY() && mouseY <= item.getY() + item.getHeight()) {
+                        item.clickScrollable(this.mc, mouseX, mouseY);
+                        return null;
+                    }
+                    continue;
                 }
             }
         }
@@ -115,24 +125,29 @@ public class ScrollPane extends GuiSlot
         this.firstVisibleIndex = -1;
         this.lastVisibleIndex = -1;
         super.func_148128_a(mX - this.getX(), mY - this.getY(), f);
+        if (Mouse.isButtonDown(0) && this.getY() <= mY && mY <= this.getY() + this.field_148158_l && mX >= this.getX() + this.field_148155_a && mX <= this.getX() + this.field_148155_a + 6) {
+            final int slot = (int)((mY - this.getY() * 1.0) / this.paneHeight * this.func_148127_b());
+            this.func_148145_f(-(this.func_148127_b() * this.func_148146_j()));
+            this.func_148145_f(slot * this.func_148146_j());
+        }
         GlStateManager.func_179121_F();
     }
     
-    protected void func_192637_a(final int index, final int xPosition, final int y, final int l, final int var6, final int var7, final float f) {
-        if (this.firstVisibleIndex == -1) {
-            this.firstVisibleIndex = index;
-        }
-        this.lastVisibleIndex = Math.max(this.lastVisibleIndex, index);
+    protected void func_192637_a(final int index, final int x, final int yPosition, final int insideSlotHeight, final int mouseXIn, final int mouseYIn, final float partialTicks) {
         GlStateManager.func_179094_E();
         GlStateManager.func_179109_b((float)(-this.getX()), (float)(-this.getY()), 0.0f);
         final int margin = 4;
         final int itemX = this.getX() + 2;
-        final int itemY = y + this.getY();
+        final int itemY = yPosition + this.getY();
         final Scrollable item = (Scrollable)this.items.get(index);
         item.setPosition(itemX, itemY);
         item.setScrollableWidth(this.paneWidth - 4);
         if (this.inFullView(item)) {
             item.drawScrollable(this.mc, this._mouseX, this._mouseY);
+            if (this.firstVisibleIndex == -1) {
+                this.firstVisibleIndex = index;
+            }
+            this.lastVisibleIndex = Math.max(this.lastVisibleIndex, index);
         }
         else {
             final int paneBottomY = this.getY() + this.paneHeight;
@@ -158,6 +173,18 @@ public class ScrollPane extends GuiSlot
         return item.getY() >= this.getY() && item.getY() + item.getHeight() <= this.getY() + this.paneHeight;
     }
     
+    public Scrollable getScrollableUnderMouse(final int mouseX, final int mouseY) {
+        for (int i = this.firstVisibleIndex; i <= this.lastVisibleIndex; ++i) {
+            if (i >= 0 && i < this.items.size()) {
+                final Scrollable item = (Scrollable)this.items.get(i);
+                if (mouseX >= item.getX() && mouseX <= item.getX() + item.getWidth() && mouseY >= item.getY() && mouseY <= item.getY() + item.getHeight()) {
+                    return item;
+                }
+            }
+        }
+        return null;
+    }
+    
     protected int func_148137_d() {
         return this.paneWidth;
     }
@@ -180,16 +207,19 @@ public class ScrollPane extends GuiSlot
     }
     
     protected void drawContainerBackground(final Tessellator tess) {
-        final int width = this.getWidth();
-        float alpha = 0.4f;
-        DrawUtil.drawRectangle(0.0, this.field_148153_b, width, this.paneHeight, Color.BLACK.getRGB(), alpha);
-        DrawUtil.drawRectangle(width - 6, this.field_148153_b, 5.0, this.paneHeight, Color.BLACK.getRGB(), alpha);
+        DrawUtil.drawRectangle(this.field_148152_e, this.field_148153_b, this.paneWidth, this.paneHeight, this.bgColor, this.bgAlpha);
+        if (this.func_148135_f() == 0) {
+            DrawUtil.drawRectangle(this.paneWidth, this.field_148153_b, 6.0, this.paneHeight, 0, this.bgAlpha);
+        }
         if (this.showFrame) {
-            alpha = 1.0f;
-            DrawUtil.drawRectangle(-1.0, -1.0, width + 2, 1.0, this.frameColor, alpha);
-            DrawUtil.drawRectangle(-1.0, this.paneHeight, width + 2, 1.0, this.frameColor, alpha);
-            DrawUtil.drawRectangle(-1.0, -1.0, 1.0, this.paneHeight + 1, this.frameColor, alpha);
-            DrawUtil.drawRectangle(width + 1, -1.0, 1.0, this.paneHeight + 2, this.frameColor, alpha);
+            final int x1 = -2;
+            final int y1 = this.field_148153_b - 1;
+            final int x2 = this.paneWidth + 8;
+            final int y2 = this.paneHeight + 3;
+            DrawUtil.drawRectangle(x1, y1, x2, 1.0, this.frameColor, this.frameAlpha);
+            DrawUtil.drawRectangle(x1, y2 - 3, x2 + 1, 1.0, this.frameColor, this.frameAlpha);
+            DrawUtil.drawRectangle(x1, y1, 1.0, y2 - 2, this.frameColor, this.frameAlpha);
+            DrawUtil.drawRectangle(x2 - 2, y1, 1.0, y2 - 2, this.frameColor, this.frameAlpha);
         }
     }
     
@@ -222,5 +252,7 @@ public class ScrollPane extends GuiSlot
         void drawPartialScrollable(final Minecraft p0, final int p1, final int p2, final int p3, final int p4);
         
         void clickScrollable(final Minecraft p0, final int p1, final int p2);
+        
+        List<String> getTooltip();
     }
 }

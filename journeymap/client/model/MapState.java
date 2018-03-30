@@ -10,16 +10,20 @@ import net.minecraft.entity.player.*;
 import journeymap.common.*;
 import journeymap.client.io.*;
 import journeymap.client.feature.*;
+import journeymap.client.*;
+import journeymap.common.api.feature.*;
 import journeymap.client.data.*;
 import journeymap.common.log.*;
+import journeymap.common.feature.*;
 import net.minecraft.world.*;
-import net.minecraft.entity.*;
 import com.google.common.collect.*;
 import com.google.common.base.*;
 import journeymap.client.render.map.*;
 import journeymap.client.api.impl.*;
 import journeymap.client.render.draw.*;
 import java.util.*;
+import journeymap.client.waypoint.*;
+import journeymap.client.api.display.*;
 import journeymap.client.properties.*;
 import journeymap.client.task.multi.*;
 import net.minecraft.util.math.*;
@@ -32,15 +36,17 @@ public class MapState
     public String playerLastPos;
     private StatTimer refreshTimer;
     private StatTimer generateDrawStepsTimer;
-    private MapType lastMapType;
+    private MapView lastMapView;
     private File worldDir;
     private long lastRefresh;
     private long lastMapTypeChange;
     private IntegerField lastSlice;
-    private boolean surfaceMappingAllowed;
+    private boolean dayMappingAllowed;
+    private boolean nightMappingAllowed;
     private boolean caveMappingAllowed;
-    private boolean caveMappingEnabled;
     private boolean topoMappingAllowed;
+    private boolean biomeMappingAllowed;
+    private boolean caveMappingEnabled;
     private List<DrawStep> drawStepList;
     private List<DrawWayPointStep> drawWaypointStepList;
     private String playerBiome;
@@ -60,10 +66,12 @@ public class MapState
         this.lastRefresh = 0L;
         this.lastMapTypeChange = 0L;
         this.lastSlice = new IntegerField(Category.Hidden, "", 0, 15, 4);
-        this.surfaceMappingAllowed = false;
+        this.dayMappingAllowed = false;
+        this.nightMappingAllowed = false;
         this.caveMappingAllowed = false;
-        this.caveMappingEnabled = false;
         this.topoMappingAllowed = false;
+        this.biomeMappingAllowed = false;
+        this.caveMappingEnabled = false;
         this.drawStepList = new ArrayList<DrawStep>();
         this.drawWaypointStepList = new ArrayList<DrawWayPointStep>();
         this.playerBiome = "";
@@ -75,7 +83,7 @@ public class MapState
     }
     
     public void refresh(final Minecraft mc, final EntityPlayer player, final InGameMapProperties mapProperties) {
-        final World world = (World)mc.field_71441_e;
+        final World world = Journeymap.clientWorld();
         if (world == null || world.field_73011_w == null) {
             return;
         }
@@ -91,28 +99,33 @@ public class MapState
                 (this.lastSlice = new IntegerField(Category.Hidden, "", 0, maxSlice, seaLevel)).set(currentSlice);
             }
             final boolean hasSurface = !(world.field_73011_w instanceof WorldProviderHell);
-            this.caveMappingAllowed = FeatureManager.isAllowed(Feature.MapCaves);
+            final int dimension = world.field_73011_w.getDimension();
+            final DimensionPolicies policy = ClientFeatures.instance().get(dimension);
+            final GameType gameType = JourneymapClient.getGameType();
+            this.caveMappingAllowed = policy.isAllowed(gameType, Feature.MapType.Underground);
             this.caveMappingEnabled = (this.caveMappingAllowed && mapProperties.showCaves.get());
-            this.surfaceMappingAllowed = (hasSurface && FeatureManager.isAllowed(Feature.MapSurface));
-            this.topoMappingAllowed = (hasSurface && FeatureManager.isAllowed(Feature.MapTopo) && coreProperties.mapTopography.get());
+            this.dayMappingAllowed = (hasSurface && policy.isAllowed(gameType, Feature.MapType.Day));
+            this.nightMappingAllowed = (hasSurface && policy.isAllowed(gameType, Feature.MapType.Night));
+            this.topoMappingAllowed = (hasSurface && policy.isAllowed(gameType, Feature.MapType.Topo) && coreProperties.mapTopography.get());
+            this.biomeMappingAllowed = policy.isAllowed(gameType, Feature.MapType.Biome);
             this.highQuality = coreProperties.tileHighDisplayQuality.get();
             this.lastPlayerChunkX = player.field_70176_ah;
             this.lastPlayerChunkY = player.field_70162_ai;
             this.lastPlayerChunkZ = player.field_70164_aj;
             final EntityDTO playerDTO = DataCache.getPlayer();
             this.playerBiome = playerDTO.biome;
-            if (this.lastMapType != null) {
-                if (player.field_71093_bK != this.lastMapType.dimension) {
-                    this.lastMapType = null;
+            if (this.lastMapView != null) {
+                if (player.field_71093_bK != this.lastMapView.dimension) {
+                    this.lastMapView = null;
                 }
-                else if (this.caveMappingEnabled && this.follow.get() && playerDTO.underground && !this.lastMapType.isUnderground()) {
-                    this.lastMapType = null;
+                else if (this.caveMappingEnabled && this.follow.get() && playerDTO.underground && !this.lastMapView.isUnderground()) {
+                    this.lastMapView = null;
                 }
-                else if (!this.lastMapType.isAllowed()) {
-                    this.lastMapType = null;
+                else if (!this.lastMapView.isAllowed()) {
+                    this.lastMapView = null;
                 }
             }
-            this.lastMapType = this.getMapType();
+            this.lastMapView = this.getMapView();
             this.updateLastRefresh();
         }
         catch (Exception e) {
@@ -123,109 +136,117 @@ public class MapState
         }
     }
     
-    public MapType setMapType(final MapType.Name mapTypeName) {
-        return this.setMapType(MapType.from(mapTypeName, DataCache.getPlayer()));
+    public MapView setMapType(final Feature.MapType mapType) {
+        if (mapType == null) {
+            return this.setMapType(MapView.NONE);
+        }
+        return this.setMapType(MapView.from(mapType, DataCache.getPlayer()));
     }
     
-    public MapType toggleMapType() {
-        final MapType.Name next = this.getNextMapType(this.getMapType().name);
+    public MapView toggleMapType() {
+        final Feature.MapType next = this.getNextMapType(this.getMapView().mapType);
         return this.setMapType(next);
     }
     
-    public MapType.Name getNextMapType(final MapType.Name name) {
+    public Feature.MapType getNextMapType(final Feature.MapType mapType) {
         final EntityDTO player = DataCache.getPlayer();
-        final EntityLivingBase playerEntity = player.entityLivingRef.get();
-        if (playerEntity == null) {
-            return name;
+        if (player.entityRef.get() == null) {
+            return mapType;
         }
-        final List<MapType.Name> types = new ArrayList<MapType.Name>(4);
-        if (this.surfaceMappingAllowed) {
-            types.add(MapType.Name.day);
-            types.add(MapType.Name.night);
+        final List<Feature.MapType> types = new ArrayList<Feature.MapType>(4);
+        if (this.dayMappingAllowed) {
+            types.add(Feature.MapType.Day);
         }
-        if (this.caveMappingAllowed && (player.underground || name == MapType.Name.underground)) {
-            types.add(MapType.Name.underground);
+        if (this.nightMappingAllowed) {
+            types.add(Feature.MapType.Night);
+        }
+        if (this.caveMappingAllowed && (player.underground || mapType == Feature.MapType.Underground)) {
+            types.add(Feature.MapType.Underground);
         }
         if (this.topoMappingAllowed) {
-            types.add(MapType.Name.topo);
+            types.add(Feature.MapType.Topo);
         }
-        if (name == MapType.Name.none && !types.isEmpty()) {
+        if (mapType == null && !types.isEmpty()) {
             return types.get(0);
         }
-        if (types.contains(name)) {
-            final Iterator<MapType.Name> cyclingIterator = Iterables.cycle((Iterable)types).iterator();
+        if (types.contains(mapType)) {
+            final Iterator<Feature.MapType> cyclingIterator = Iterables.cycle((Iterable)types).iterator();
             while (cyclingIterator.hasNext()) {
-                final MapType.Name current = cyclingIterator.next();
-                if (current == name) {
+                final Feature.MapType current = cyclingIterator.next();
+                if (current == mapType) {
                     return cyclingIterator.next();
                 }
             }
         }
-        return name;
+        return mapType;
     }
     
-    public MapType setMapType(MapType mapType) {
-        if (!mapType.isAllowed()) {
-            mapType = MapType.from(this.getNextMapType(mapType.name), DataCache.getPlayer());
-            if (!mapType.isAllowed()) {
-                mapType = MapType.none();
+    public MapView setMapType(MapView mapView) {
+        if (!mapView.isAllowed()) {
+            mapView = MapView.from(this.getNextMapType(mapView.mapType), DataCache.getPlayer());
+            if (!mapView.isAllowed()) {
+                mapView = MapView.none();
             }
         }
         final EntityDTO player = DataCache.getPlayer();
-        if (player.underground != mapType.isUnderground()) {
+        if (player.underground != mapView.isUnderground()) {
             this.follow.set(false);
         }
-        if (mapType.isUnderground()) {
-            if (player.chunkCoordY != mapType.vSlice) {
+        if (mapView.isUnderground()) {
+            if (player.chunkCoordY != mapView.vSlice) {
                 this.follow.set(false);
             }
-            this.lastSlice.set(mapType.vSlice);
+            this.lastSlice.set(mapView.vSlice);
         }
-        else if (mapType.name != MapType.Name.none && this.lastMapProperties.preferredMapType.get() != mapType.name) {
-            this.lastMapProperties.preferredMapType.set(mapType.name);
-            this.lastMapProperties.save();
-        }
-        this.setLastMapTypeChange(mapType);
-        return this.lastMapType;
+        this.setLastMapTypeChange(mapView);
+        return this.lastMapView;
     }
     
-    public MapType getMapType() {
-        if (this.lastMapType == null) {
+    public MapView getMapView() {
+        if (this.lastMapView == null) {
             final EntityDTO player = DataCache.getPlayer();
-            MapType mapType = null;
+            MapView mapView = null;
             try {
                 if (this.caveMappingEnabled && player.underground) {
-                    mapType = MapType.underground(player);
+                    mapView = MapView.underground(player);
                 }
-                else if (this.follow.get() && this.surfaceMappingAllowed && !player.underground) {
-                    mapType = MapType.day(player);
-                }
-                if (mapType == null) {
-                    mapType = MapType.from(this.lastMapProperties.preferredMapType.get(), player);
+                else if (this.follow.get() && !player.underground) {
+                    if (this.dayMappingAllowed) {
+                        mapView = MapView.day(player);
+                    }
+                    else if (this.nightMappingAllowed) {
+                        mapView = MapView.night(player);
+                    }
+                    else if (this.topoMappingAllowed) {
+                        mapView = MapView.topo(player);
+                    }
                 }
             }
             catch (Exception e) {
-                mapType = MapType.day(player);
+                Journeymap.getLogger().warn("Error determining MapView: ", (Object)LogFormatter.toPartialString(e));
             }
-            this.setMapType(mapType);
+            if (mapView == null) {
+                mapView = MapView.day(player);
+            }
+            this.setMapType(mapView);
         }
-        return this.lastMapType;
+        return this.lastMapView;
     }
     
     public long getLastMapTypeChange() {
         return this.lastMapTypeChange;
     }
     
-    private void setLastMapTypeChange(final MapType mapType) {
-        if (!Objects.equal((Object)mapType, (Object)this.lastMapType)) {
+    private void setLastMapTypeChange(final MapView mapView) {
+        if (!Objects.equal((Object)mapView, (Object)this.lastMapView)) {
             this.lastMapTypeChange = System.currentTimeMillis();
             this.requireRefresh();
         }
-        this.lastMapType = mapType;
+        this.lastMapView = mapView;
     }
     
     public boolean isUnderground() {
-        return this.getMapType().isUnderground();
+        return this.getMapView().isUnderground();
     }
     
     public File getWorldDir() {
@@ -251,25 +272,31 @@ public class MapState
         this.drawWaypointStepList.clear();
         this.entityList.clear();
         ClientAPI.INSTANCE.getDrawSteps(this.drawStepList, gridRenderer.getUIState());
-        if (FeatureManager.isAllowed(Feature.RadarAnimals) && (mapProperties.showAnimals.get() || mapProperties.showPets.get())) {
-            this.entityList.addAll(DataCache.INSTANCE.getAnimals(false).values());
+        final int dimension = this.getDimension();
+        final DimensionPolicies policy = ClientFeatures.instance().get(dimension);
+        final GameType gameType = JourneymapClient.getGameType();
+        if (policy.isAllowed(gameType, Feature.Radar.Vehicle) && mapProperties.showVehicles.get()) {
+            this.entityList.addAll(DataCache.INSTANCE.getVehicles(false).values());
         }
-        if (FeatureManager.isAllowed(Feature.RadarVillagers) && mapProperties.showVillagers.get()) {
-            this.entityList.addAll(DataCache.INSTANCE.getVillagers(false).values());
+        if (policy.isAllowed(gameType, Feature.Radar.PassiveMob) && (mapProperties.showAnimals.get() || mapProperties.showPets.get())) {
+            this.entityList.addAll(DataCache.INSTANCE.getPassiveMobs(false).values());
         }
-        if (FeatureManager.isAllowed(Feature.RadarMobs) && mapProperties.showMobs.get()) {
-            this.entityList.addAll(DataCache.INSTANCE.getMobs(false).values());
+        if (policy.isAllowed(gameType, Feature.Radar.NPC) && mapProperties.showVillagers.get()) {
+            this.entityList.addAll(DataCache.INSTANCE.getNpcs(false).values());
         }
-        if (FeatureManager.isAllowed(Feature.RadarPlayers) && mapProperties.showPlayers.get()) {
+        if (policy.isAllowed(gameType, Feature.Radar.HostileMob) && mapProperties.showMobs.get()) {
+            this.entityList.addAll(DataCache.INSTANCE.getHostileMobs(false).values());
+        }
+        if (policy.isAllowed(gameType, Feature.Radar.Player) && mapProperties.showPlayers.get()) {
             this.entityList.addAll(DataCache.INSTANCE.getPlayers(false).values());
         }
         if (!this.entityList.isEmpty()) {
             Collections.sort(this.entityList, EntityHelper.entityMapComparator);
             this.drawStepList.addAll(radarRenderer.prepareSteps(this.entityList, gridRenderer, mapProperties));
         }
-        if (mapProperties.showWaypoints.get()) {
+        if (mapProperties.showWaypoints.get() && policy.isAllowed(gameType, Feature.Radar.Waypoint)) {
             final boolean showLabel = mapProperties.showWaypointLabels.get();
-            this.drawWaypointStepList.addAll(waypointRenderer.prepareSteps(DataCache.INSTANCE.getWaypoints(false), gridRenderer, checkWaypointDistance, showLabel));
+            this.drawWaypointStepList.addAll(waypointRenderer.prepareSteps(WaypointStore.INSTANCE.getAll(dimension), gridRenderer, checkWaypointDistance, showLabel));
         }
         this.generateDrawStepsTimer.stop();
     }
@@ -310,11 +337,11 @@ public class MapState
         if (MapPlayerTask.getlastTaskCompleted() - this.lastRefresh > 500L) {
             return true;
         }
-        if (this.lastMapType == null) {
+        if (this.lastMapView == null) {
             return true;
         }
         final EntityDTO player = DataCache.getPlayer();
-        if (this.getMapType().dimension != player.dimension) {
+        if (this.getMapView().dimension != player.dimension) {
             return true;
         }
         final double d0 = this.lastPlayerChunkX - player.chunkCoordX;
@@ -336,16 +363,24 @@ public class MapState
         return this.caveMappingEnabled;
     }
     
-    public boolean isSurfaceMappingAllowed() {
-        return this.surfaceMappingAllowed;
+    public boolean isDayMappingAllowed() {
+        return this.dayMappingAllowed;
+    }
+    
+    public boolean isNightMappingAllowed() {
+        return this.nightMappingAllowed;
     }
     
     public boolean isTopoMappingAllowed() {
         return this.topoMappingAllowed;
     }
     
+    public boolean isBiomeMappingAllowed() {
+        return this.biomeMappingAllowed;
+    }
+    
     public int getDimension() {
-        return this.getMapType().dimension;
+        return this.getMapView().dimension;
     }
     
     public IntegerField getLastSlice() {
@@ -353,6 +388,6 @@ public class MapState
     }
     
     public void resetMapType() {
-        this.lastMapType = null;
+        this.lastMapView = null;
     }
 }

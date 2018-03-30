@@ -10,7 +10,7 @@ import journeymap.common.*;
 
 public class SaveMapTask implements ITask
 {
-    public static MapType MAP_TYPE;
+    public static MapView MAP_TYPE;
     private static final Logger logger;
     MapSaver mapSaver;
     

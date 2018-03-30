@@ -31,10 +31,10 @@ public class RegionCoord implements Comparable<RegionCoord>
         this.theHashCode = this.theCacheKey.hashCode();
     }
     
-    public static RegionCoord fromChunkPos(final File worldDir, final MapType mapType, final int chunkX, final int chunkZ) {
+    public static RegionCoord fromChunkPos(final File worldDir, final MapView mapView, final int chunkX, final int chunkZ) {
         final int regionX = getRegionPos(chunkX);
         final int regionZ = getRegionPos(chunkZ);
-        return fromRegionPos(worldDir, regionX, regionZ, mapType.dimension);
+        return fromRegionPos(worldDir, regionX, regionZ, mapView.dimension);
     }
     
     public static RegionCoord fromRegionPos(final File worldDir, final int regionX, final int regionZ, final int dimension) {
@@ -67,8 +67,8 @@ public class RegionCoord implements Comparable<RegionCoord>
         return getMinChunkZ(rZ) + (int)Math.pow(2.0, 5.0) - 1;
     }
     
-    public static int getRegionPos(final int chunkPos) {
-        return chunkPos >> 5;
+    public static int getRegionPos(final int ChunkPos) {
+        return ChunkPos >> 5;
     }
     
     public static String toCacheKey(final Path dimDir, final int regionX, final int regionZ) {

@@ -3,20 +3,21 @@ package journeymap.client.ui.fullscreen;
 import net.minecraft.util.*;
 import journeymap.client.render.map.*;
 import journeymap.client.ui.fullscreen.layer.*;
+import org.apache.logging.log4j.*;
 import journeymap.client.ui.option.*;
+import net.minecraft.client.entity.*;
 import journeymap.common.*;
 import net.minecraftforge.fml.client.*;
 import journeymap.client.api.util.*;
 import net.minecraft.entity.player.*;
 import journeymap.client.ui.*;
 import net.minecraft.client.renderer.*;
-import org.apache.logging.log4j.*;
+import journeymap.common.api.feature.*;
 import journeymap.common.log.*;
 import net.minecraft.client.*;
 import journeymap.client.ui.theme.*;
-import journeymap.client.feature.*;
-import journeymap.client.*;
 import journeymap.client.data.*;
+import journeymap.client.*;
 import net.minecraft.util.text.*;
 import journeymap.common.version.*;
 import journeymap.client.io.*;
@@ -27,17 +28,18 @@ import journeymap.client.task.main.*;
 import journeymap.client.ui.component.*;
 import net.minecraft.client.gui.*;
 import journeymap.client.model.*;
+import journeymap.client.feature.*;
 import org.lwjgl.input.*;
 import javax.annotation.*;
 import java.io.*;
 import java.awt.geom.*;
+import journeymap.client.waypoint.*;
 import journeymap.client.render.draw.*;
 import journeymap.client.render.texture.*;
 import journeymap.client.api.model.*;
 import journeymap.client.api.impl.*;
 import journeymap.client.api.display.*;
 import net.minecraft.util.math.*;
-import net.minecraft.client.entity.*;
 import java.util.*;
 import journeymap.client.ui.minimap.*;
 import journeymap.client.properties.*;
@@ -86,6 +88,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
     ThemeButton buttonResetPalette;
     ThemeButton buttonBrowser;
     ThemeButton buttonAbout;
+    ThemeButton buttonFeatures;
     ThemeToolbar mapTypeToolbar;
     ThemeToolbar optionsToolbar;
     ThemeToolbar menuToolbar;
@@ -103,6 +106,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
     private Rectangle2D.Double mapTypeToolbarBounds;
     private Rectangle2D.Double optionsToolbarBounds;
     private Rectangle2D.Double menuToolbarBounds;
+    private EntityPlayerSP player;
     
     public Fullscreen() {
         super(null);
@@ -119,11 +123,10 @@ public class Fullscreen extends JmUI implements ITabCompleter
         this.drawMapTimerWithRefresh = StatTimer.get("Fullscreen.drawMap+refreshState", 5);
         this.locationFormat = new LocationFormat();
         this.tempOverlays = new ArrayList<Overlay>();
+        this.player = Journeymap.clientPlayer();
         this.field_146297_k = FMLClientHandler.instance().getClient();
         this.layerDelegate = new LayerDelegate(this);
-        if (Journeymap.getClient().getFullMapProperties().showCaves.get() && DataCache.getPlayer().underground && Fullscreen.state.follow.get()) {
-            Fullscreen.state.setMapType(MapType.underground(DataCache.getPlayer()));
-        }
+        Fullscreen.state.follow.set(true);
     }
     
     public static synchronized MapState state() {
@@ -144,10 +147,16 @@ public class Fullscreen extends JmUI implements ITabCompleter
     public void func_73866_w_() {
         this.fullMapProperties = Journeymap.getClient().getFullMapProperties();
         Fullscreen.state.requireRefresh();
-        Fullscreen.state.refresh(this.field_146297_k, (EntityPlayer)this.field_146297_k.field_71439_g, this.fullMapProperties);
-        final MapType mapType = Fullscreen.state.getMapType();
+        Fullscreen.state.refresh(this.field_146297_k, (EntityPlayer)this.player, this.fullMapProperties);
+        MapView mapView = Fullscreen.state.getMapView();
+        if (!mapView.isAllowed() || mapView.isNone()) {
+            mapView = Fullscreen.state.toggleMapType();
+        }
         Keyboard.enableRepeatEvents(true);
-        if (mapType.dimension != this.field_146297_k.field_71439_g.field_71093_bK) {
+        if (mapView.isNone()) {
+            Fullscreen.gridRenderer.clear();
+        }
+        else if (mapView.dimension != this.player.field_71093_bK) {
             Fullscreen.gridRenderer.clear();
         }
         this.initButtons();
@@ -159,7 +168,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
     }
     
     @Override
-    public void func_73863_a(final int width, final int height, final float f) {
+    public void func_73863_a(final int mouseX, final int mouseY, final float partialTicks) {
         try {
             this.func_146278_c(0);
             this.drawMap();
@@ -168,13 +177,13 @@ public class Fullscreen extends JmUI implements ITabCompleter
             List<String> tooltip = null;
             if (this.firstLayoutPass) {
                 this.layoutButtons();
-                this.updateMapType(Fullscreen.state.getMapType());
+                this.updateMapType(Fullscreen.state.getMapView());
                 this.firstLayoutPass = false;
             }
             else {
                 for (int k = 0; k < this.field_146292_n.size(); ++k) {
                     final GuiButton guibutton = this.field_146292_n.get(k);
-                    guibutton.func_191745_a(this.field_146297_k, width, height, f);
+                    guibutton.func_191745_a(this.field_146297_k, mouseX, mouseY, partialTicks);
                     if (tooltip == null && guibutton instanceof Button) {
                         final Button button = (Button)guibutton;
                         if (button.mouseOver(this.mx, this.my)) {
@@ -184,15 +193,16 @@ public class Fullscreen extends JmUI implements ITabCompleter
                 }
             }
             if (this.chat != null) {
-                this.chat.func_73863_a(width, height, f);
+                this.chat.func_73863_a(mouseX, mouseY, partialTicks);
             }
             if (tooltip != null && !tooltip.isEmpty()) {
                 this.drawHoveringText(tooltip, this.mx, this.my, this.getFontRenderer());
                 RenderHelper.func_74518_a();
             }
+            this.showDisabled(Feature.Display.Fullscreen, Fullscreen.state.getMapView().dimension, mouseX, mouseY);
         }
         catch (Throwable e) {
-            this.logger.log(Level.ERROR, "Unexpected exception in jm.fullscreen.drawScreen(): " + LogFormatter.toString(e));
+            this.logger.error("Unexpected exception in jm.fullscreen.drawScreen(): " + LogFormatter.toString(e));
             UIManager.INSTANCE.closeAll();
         }
         finally {
@@ -231,44 +241,51 @@ public class Fullscreen extends JmUI implements ITabCompleter
         if (this.field_146292_n.isEmpty()) {
             this.firstLayoutPass = true;
             final Theme theme = ThemeLoader.getCurrentTheme();
-            final MapType mapType = Fullscreen.state.getMapType();
+            final MapView mapView = Fullscreen.state.getMapView();
             this.bgColor = theme.fullscreen.background.getColor();
             this.statusLabelSpec = theme.fullscreen.statusLabel;
             this.buttonDay = new ThemeToggle(theme, "jm.fullscreen.map_day", "day");
             this.buttonNight = new ThemeToggle(theme, "jm.fullscreen.map_night", "night");
             this.buttonTopo = new ThemeToggle(theme, "jm.fullscreen.map_topo", "topo");
             this.buttonLayers = new ThemeToggle(theme, "jm.fullscreen.map_cave_layers", "layers");
-            this.buttonDay.setToggled(mapType.isDay(), false);
+            this.buttonDay.setToggled(mapView.isDay(), false);
+            this.buttonDay.setEnabled(Fullscreen.state.isDayMappingAllowed());
+            this.buttonDay.showDisabledOnHover(true);
             this.buttonDay.setStaysOn(true);
             this.buttonDay.addToggleListener((button, toggled) -> {
                 if (button.field_146124_l) {
-                    this.updateMapType(MapType.day(Fullscreen.state.getDimension()));
+                    this.updateMapType(MapView.day(Fullscreen.state.getDimension()));
                 }
                 return button.field_146124_l;
             });
-            this.buttonNight.setToggled(mapType.isNight(), false);
+            this.buttonNight.setToggled(mapView.isNight(), false);
+            this.buttonNight.setEnabled(Fullscreen.state.isNightMappingAllowed());
+            this.buttonNight.showDisabledOnHover(true);
             this.buttonNight.setStaysOn(true);
             this.buttonNight.addToggleListener((button, toggled) -> {
                 if (button.field_146124_l) {
-                    this.updateMapType(MapType.night(Fullscreen.state.getDimension()));
+                    this.updateMapType(MapView.night(Fullscreen.state.getDimension()));
                 }
                 return button.field_146124_l;
             });
             this.buttonTopo.setDrawButton(this.coreProperties.mapTopography.get());
-            this.buttonTopo.setToggled(mapType.isTopo(), false);
+            this.buttonTopo.setEnabled(Fullscreen.state.isTopoMappingAllowed());
+            this.buttonTopo.setToggled(mapView.isTopo(), false);
+            this.buttonTopo.showDisabledOnHover(true);
             this.buttonTopo.setStaysOn(true);
             this.buttonTopo.addToggleListener((button, toggled) -> {
                 if (button.field_146124_l) {
-                    this.updateMapType(MapType.topo(Fullscreen.state.getDimension()));
+                    this.updateMapType(MapView.topo(Fullscreen.state.getDimension()));
                 }
                 return button.field_146124_l;
             });
-            this.buttonLayers.setEnabled(FeatureManager.isAllowed(Feature.MapCaves));
-            this.buttonLayers.setToggled(mapType.isUnderground(), false);
+            this.buttonLayers.setToggled(mapView.isUnderground(), false);
+            this.buttonLayers.setEnabled(Fullscreen.state.isCaveMappingAllowed());
+            this.buttonLayers.showDisabledOnHover(true);
             this.buttonLayers.setStaysOn(true);
             this.buttonLayers.addToggleListener((button, toggled) -> {
                 if (button.field_146124_l) {
-                    this.updateMapType(MapType.underground(DataCache.getPlayer()));
+                    this.updateMapType(MapView.underground(DataCache.getPlayer()));
                 }
                 return button.field_146124_l;
             });
@@ -280,7 +297,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
             this.sliderCaveLayer.setBackgroundColors(buttonSpec.buttonDisabled.getColor(), buttonSpec.buttonOff.getColor(), buttonSpec.buttonOff.getColor());
             this.sliderCaveLayer.setLabelColors(buttonSpec.iconHoverOff.getColor(), buttonSpec.iconHoverOn.getColor(), buttonSpec.iconDisabled.getColor());
             this.sliderCaveLayer.addClickListener(button -> {
-                Fullscreen.state.setMapType(MapType.underground(this.sliderCaveLayer.getValue(), Fullscreen.state.getDimension()));
+                Fullscreen.state.setMapType(MapView.underground(this.sliderCaveLayer.getValue(), Fullscreen.state.getDimension()));
                 this.refreshState();
                 return true;
             });
@@ -307,8 +324,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
                 this.zoomOut();
                 return true;
             });
-            (this.buttonWaypointManager = new ThemeButton(theme, "jm.waypoint.waypoints_button", "waypoints")).setDrawButton(WaypointsData.isManagerEnabled());
-            this.buttonWaypointManager.addToggleListener((button, toggled) -> {
+            (this.buttonWaypointManager = new ThemeButton(theme, "jm.waypoint.waypoints_button", "waypoints")).addToggleListener((button, toggled) -> {
                 UIManager.INSTANCE.openWaypointManager(null, this);
                 return true;
             });
@@ -345,24 +361,26 @@ public class Fullscreen extends JmUI implements ITabCompleter
             });
             (this.buttonCaves = new ThemeToggle(theme, "jm.common.show_caves", "caves", this.fullMapProperties.showCaves)).setTooltip(Constants.getString("jm.common.show_caves.tooltip"));
             this.buttonCaves.setDrawButton(Fullscreen.state.isCaveMappingAllowed());
+            this.buttonCaves.showDisabledOnHover(true);
             final EntityDTO player;
             this.buttonCaves.addToggleListener((button, toggled) -> {
                 player = DataCache.getPlayer();
                 if (toggled && player.underground) {
-                    this.updateMapType(MapType.underground(player));
+                    this.updateMapType(MapView.underground(player));
                 }
                 return true;
             });
-            (this.buttonMobs = new ThemeToggle(theme, "jm.common.show_mobs", "monsters", this.fullMapProperties.showMobs)).setTooltip(Constants.getString("jm.common.show_mobs.tooltip"));
-            this.buttonMobs.setDrawButton(FeatureManager.isAllowed(Feature.RadarMobs));
-            (this.buttonAnimals = new ThemeToggle(theme, "jm.common.show_animals", "animals", this.fullMapProperties.showAnimals)).setTooltip(Constants.getString("jm.common.show_animals.tooltip"));
-            this.buttonAnimals.setDrawButton(FeatureManager.isAllowed(Feature.RadarAnimals));
-            (this.buttonPets = new ThemeToggle(theme, "jm.common.show_pets", "pets", this.fullMapProperties.showPets)).setTooltip(Constants.getString("jm.common.show_pets.tooltip"));
-            this.buttonPets.setDrawButton(FeatureManager.isAllowed(Feature.RadarAnimals));
-            (this.buttonVillagers = new ThemeToggle(theme, "jm.common.show_villagers", "villagers", this.fullMapProperties.showVillagers)).setTooltip(Constants.getString("jm.common.show_villagers.tooltip"));
-            this.buttonVillagers.setDrawButton(FeatureManager.isAllowed(Feature.RadarVillagers));
+            (this.buttonMobs = new ThemeToggle(theme, "jm.common.show_mobs", "monsters", this.fullMapProperties.showMobs)).showDisabledOnHover(true);
+            this.buttonMobs.setTooltip(Constants.getString("jm.common.show_mobs.tooltip"));
+            (this.buttonAnimals = new ThemeToggle(theme, "jm.common.show_animals", "animals", this.fullMapProperties.showAnimals)).showDisabledOnHover(true);
+            this.buttonAnimals.setTooltip(Constants.getString("jm.common.show_animals.tooltip"));
+            (this.buttonPets = new ThemeToggle(theme, "jm.common.show_pets", "pets", this.fullMapProperties.showPets)).showDisabledOnHover(true);
+            this.buttonPets.setTooltip(Constants.getString("jm.common.show_pets.tooltip"));
+            (this.buttonVillagers = new ThemeToggle(theme, "jm.common.show_villagers", "villagers", this.fullMapProperties.showVillagers)).showDisabledOnHover(true);
+            this.buttonVillagers.setTooltip(Constants.getString("jm.common.show_villagers.tooltip"));
             (this.buttonPlayers = new ThemeToggle(theme, "jm.common.show_players", "players", this.fullMapProperties.showPlayers)).setTooltip(Constants.getString("jm.common.show_players.tooltip"));
-            this.buttonPlayers.setDrawButton(!this.field_146297_k.func_71356_B() && FeatureManager.isAllowed(Feature.RadarPlayers));
+            this.buttonPlayers.showDisabledOnHover(true);
+            this.buttonPlayers.setDrawButton(!FMLClientHandler.instance().getClient().func_71356_B());
             (this.buttonGrid = new ThemeToggle(theme, "jm.common.show_grid", "grid", this.fullMapProperties.showGrid)).setTooltip(Constants.getString("jm.common.show_grid_shift.tooltip"));
             this.buttonGrid.setTooltip(Constants.getString("jm.common.show_grid_shift.tooltip"));
             final boolean shiftDown;
@@ -382,11 +400,16 @@ public class Fullscreen extends JmUI implements ITabCompleter
                 UIManager.INSTANCE.openSplash(this);
                 return true;
             });
+            (this.buttonFeatures = new ThemeButton(theme, "jm.common.features", "features")).setTooltip(Constants.getString("jm.common.features.tooltip"));
+            this.buttonFeatures.addToggleListener((button, toggled) -> {
+                UIManager.INSTANCE.open(FeatureDialog.class, this);
+                return true;
+            });
             MapSaver mapSaver;
             (this.buttonSavemap = new ThemeButton(theme, "jm.common.save_map", "savemap")).addToggleListener((button, toggled) -> {
                 this.buttonSavemap.setEnabled(false);
                 try {
-                    mapSaver = new MapSaver(Fullscreen.state.getWorldDir(), Fullscreen.state.getMapType());
+                    mapSaver = new MapSaver(Fullscreen.state.getWorldDir(), Fullscreen.state.getMapView());
                     if (mapSaver.isValid()) {
                         Journeymap.getClient().toggleTask(SaveMapTask.Manager.class, true, mapSaver);
                         ChatLog.announceI18N("jm.common.save_filename", mapSaver.getSaveFileName());
@@ -450,7 +473,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
             (this.mapTypeToolbar = new ThemeToolbar(theme, new Button[] { this.buttonLayers, this.buttonTopo, this.buttonNight, this.buttonDay })).addAllButtons(this);
             (this.optionsToolbar = new ThemeToolbar(theme, new Button[] { this.buttonCaves, this.buttonMobs, this.buttonAnimals, this.buttonPets, this.buttonVillagers, this.buttonPlayers, this.buttonGrid, this.buttonKeys })).addAllButtons(this);
             this.optionsToolbar.field_146125_m = false;
-            (this.menuToolbar = new ThemeToolbar(theme, new Button[] { this.buttonWaypointManager, this.buttonOptions, this.buttonAbout, this.buttonBrowser, this.buttonTheme, this.buttonResetPalette, this.buttonDeletemap, this.buttonSavemap, this.buttonAutomap, this.buttonDisable })).addAllButtons(this);
+            (this.menuToolbar = new ThemeToolbar(theme, new Button[] { this.buttonWaypointManager, this.buttonFeatures, this.buttonOptions, this.buttonAbout, this.buttonBrowser, this.buttonTheme, this.buttonResetPalette, this.buttonDeletemap, this.buttonSavemap, this.buttonAutomap, this.buttonDisable })).addAllButtons(this);
             this.menuToolbar.field_146125_m = false;
             (this.zoomToolbar = new ThemeToolbar(theme, new Button[] { this.buttonFollow, this.buttonZoomIn, this.buttonZoomOut })).setLayout(ButtonList.Layout.Vertical, ButtonList.Direction.LeftToRight);
             this.zoomToolbar.addAllButtons(this);
@@ -468,29 +491,45 @@ public class Fullscreen extends JmUI implements ITabCompleter
             this.initButtons();
         }
         this.menuToolbar.setDrawToolbar(!this.isChatOpen());
-        final MapType mapType = Fullscreen.state.getMapType();
-        this.buttonDay.setEnabled(Fullscreen.state.isSurfaceMappingAllowed());
-        this.buttonDay.setToggled(this.buttonDay.field_146124_l && mapType.isDay());
-        this.buttonNight.setEnabled(Fullscreen.state.isSurfaceMappingAllowed());
-        this.buttonNight.setToggled(this.buttonNight.field_146124_l && mapType.isNight());
-        this.buttonTopo.setEnabled(Fullscreen.state.isTopoMappingAllowed());
-        this.buttonTopo.setToggled(this.buttonTopo.field_146124_l && mapType.isTopo());
-        this.buttonCaves.setEnabled(Fullscreen.state.isCaveMappingAllowed());
-        this.buttonCaves.setToggled(this.buttonCaves.field_146124_l && mapType.isUnderground());
-        this.buttonFollow.setEnabled(!Fullscreen.state.follow.get());
+        MapView mapView = Fullscreen.state.getMapView();
+        if (!mapView.isAllowed() || mapView.isNone()) {
+            mapView = Fullscreen.state.toggleMapType();
+        }
+        final boolean fullscreenEnabled = ClientFeatures.instance().isAllowed(Feature.Display.Fullscreen, mapView.dimension);
+        if (!fullscreenEnabled) {
+            this.mapTypeToolbar.getButtonList().setDrawButtons(false);
+            this.optionsToolbar.getButtonList().setDrawButtons(false);
+            this.zoomToolbar.getButtonList().setDrawButtons(false);
+        }
+        else {
+            this.buttonDay.setEnabled(Fullscreen.state.isDayMappingAllowed());
+            this.buttonDay.setToggled(this.buttonDay.field_146124_l && mapView.isDay());
+            this.buttonNight.setEnabled(Fullscreen.state.isNightMappingAllowed());
+            this.buttonNight.setToggled(this.buttonNight.field_146124_l && mapView.isNight());
+            this.buttonTopo.setEnabled(Fullscreen.state.isTopoMappingAllowed());
+            this.buttonTopo.setToggled(this.buttonTopo.field_146124_l && mapView.isTopo());
+            this.buttonCaves.setEnabled(Fullscreen.state.isCaveMappingAllowed());
+            this.buttonCaves.setToggled(this.buttonCaves.field_146124_l && mapView.isUnderground());
+            this.buttonMobs.setEnabled(ClientFeatures.instance().isAllowed(Feature.Radar.HostileMob, Fullscreen.state.getDimension()));
+            this.buttonAnimals.setEnabled(ClientFeatures.instance().isAllowed(Feature.Radar.PassiveMob, Fullscreen.state.getDimension()));
+            this.buttonPets.setEnabled(ClientFeatures.instance().isAllowed(Feature.Radar.PassiveMob, Fullscreen.state.getDimension()));
+            this.buttonVillagers.setEnabled(ClientFeatures.instance().isAllowed(Feature.Radar.NPC, Fullscreen.state.getDimension()));
+            this.buttonPlayers.setEnabled(!this.field_146297_k.func_71356_B() && ClientFeatures.instance().isAllowed(Feature.Radar.Player, Fullscreen.state.getDimension()));
+            this.buttonFollow.setEnabled(!Fullscreen.state.follow.get());
+        }
         final boolean automapRunning = Journeymap.getClient().isTaskManagerEnabled(MapRegionTask.Manager.class);
         final boolean mappingEnabled = Journeymap.getClient().getCoreProperties().mappingEnabled.get();
-        this.buttonDisable.setToggled(!mappingEnabled, false);
         this.buttonAutomap.setToggled(automapRunning, false);
-        this.buttonAutomap.setEnabled(mappingEnabled);
+        this.buttonAutomap.setEnabled(mappingEnabled && fullscreenEnabled);
         this.buttonAutomap.setAdditionalTooltips(automapRunning ? this.autoMapOnTooltip : this.autoMapOffTooltip);
         final boolean webMapEnabled = Journeymap.getClient().getWebMapProperties().enabled.get();
-        this.buttonBrowser.setEnabled(webMapEnabled && mappingEnabled);
+        this.buttonBrowser.setEnabled(webMapEnabled && mappingEnabled && ClientFeatures.instance().isAllowed(Feature.Display.Webmap, Fullscreen.state.getDimension()));
         this.buttonBrowser.setDrawButton(webMapEnabled);
-        final boolean mainThreadActive = Journeymap.getClient().isMainThreadTaskActive();
-        this.buttonResetPalette.setEnabled(!mainThreadActive && mappingEnabled);
-        this.buttonDeletemap.setEnabled(!mainThreadActive);
-        this.buttonDisable.setEnabled(!mainThreadActive);
+        this.buttonSavemap.setEnabled(fullscreenEnabled);
+        this.buttonResetPalette.setEnabled(mappingEnabled);
+        this.buttonDeletemap.setEnabled(true);
+        this.buttonDisable.setEnabled(true);
+        this.buttonDisable.setToggled(!mappingEnabled, false);
         final int padding = this.mapTypeToolbar.getToolbarSpec().padding;
         this.zoomToolbar.layoutCenteredVertical(this.zoomToolbar.getHMargin(), this.field_146295_m / 2, true, padding);
         final int topY = this.mapTypeToolbar.getVMargin();
@@ -625,7 +664,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
                 this.msy = this.my;
                 try {
                     Fullscreen.gridRenderer.move(-mouseDragX, -mouseDragY);
-                    Fullscreen.gridRenderer.updateTiles(Fullscreen.state.getMapType(), Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, false, 0.0, 0.0);
+                    Fullscreen.gridRenderer.updateTiles(Fullscreen.state.getMapView(), Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, false, 0.0, 0.0);
                     Fullscreen.gridRenderer.setZoom(this.fullMapProperties.zoomLevel.get());
                 }
                 catch (Exception e) {
@@ -646,9 +685,9 @@ public class Fullscreen extends JmUI implements ITabCompleter
         this.updateMapType(Fullscreen.state.toggleMapType());
     }
     
-    private void updateMapType(MapType newType) {
+    private void updateMapType(MapView newType) {
         if (!newType.isAllowed()) {
-            newType = Fullscreen.state.getMapType();
+            newType = Fullscreen.state.getMapView();
         }
         Fullscreen.state.setMapType(newType);
         this.buttonDay.setToggled(newType.isDay(), false);
@@ -694,9 +733,9 @@ public class Fullscreen extends JmUI implements ITabCompleter
     void toggleFollow() {
         final boolean isFollow = !Fullscreen.state.follow.get();
         this.setFollow(isFollow);
-        if (isFollow && this.field_146297_k.field_71439_g != null) {
-            this.sliderCaveLayer.setValue(this.field_146297_k.field_71439_g.field_70162_ai);
-            if (Fullscreen.state.getMapType().isUnderground()) {
+        if (isFollow && this.player != null) {
+            this.sliderCaveLayer.setValue(this.player.field_70162_ai);
+            if (Fullscreen.state.getMapView().isUnderground()) {
                 this.sliderCaveLayer.checkClickListeners();
             }
         }
@@ -710,18 +749,22 @@ public class Fullscreen extends JmUI implements ITabCompleter
         }
     }
     
+    private Waypoint createWaypoint(final BlockPos pos) {
+        return WaypointStore.create(Fullscreen.state.getDimension(), pos);
+    }
+    
     public void createWaypointAtMouse() {
         final Point2D.Double mousePosition = new Point2D.Double(Mouse.getEventX(), Fullscreen.gridRenderer.getHeight() - Mouse.getEventY());
         final BlockPos blockPos = this.layerDelegate.getBlockPos(this.field_146297_k, Fullscreen.gridRenderer, mousePosition);
-        final Waypoint waypoint = Waypoint.at(blockPos, Waypoint.Type.Normal, this.field_146297_k.field_71439_g.field_71093_bK);
+        final Waypoint waypoint = this.createWaypoint(blockPos);
         UIManager.INSTANCE.openWaypointEditor(waypoint, true, this);
     }
     
     public void chatPositionAtMouse() {
         final Point2D.Double mousePosition = new Point2D.Double(Mouse.getEventX(), Fullscreen.gridRenderer.getHeight() - Mouse.getEventY());
         final BlockPos blockPos = this.layerDelegate.getBlockPos(this.field_146297_k, Fullscreen.gridRenderer, mousePosition);
-        final Waypoint waypoint = Waypoint.at(blockPos, Waypoint.Type.Normal, Fullscreen.state.getDimension());
-        this.openChat(waypoint.toChatString());
+        final Waypoint waypoint = this.createWaypoint(blockPos);
+        this.openChat(WaypointChatParser.toChatString(waypoint));
     }
     
     public boolean isChatOpen() {
@@ -761,7 +804,7 @@ public class Fullscreen extends JmUI implements ITabCompleter
     void drawMap() {
         final boolean refreshReady = this.isRefreshReady();
         final StatTimer timer = refreshReady ? this.drawMapTimerWithRefresh : this.drawMapTimer;
-        final MapType mapType = Fullscreen.state.getMapType();
+        final MapView mapView = Fullscreen.state.getMapView();
         timer.start();
         try {
             this.sizeDisplay(false);
@@ -778,29 +821,31 @@ public class Fullscreen extends JmUI implements ITabCompleter
                 this.refreshState();
             }
             else {
-                Fullscreen.gridRenderer.setContext(Fullscreen.state.getWorldDir(), mapType);
+                Fullscreen.gridRenderer.setContext(Fullscreen.state.getWorldDir(), mapView);
             }
-            Fullscreen.gridRenderer.clearGlErrors(false);
-            Fullscreen.gridRenderer.updateRotation(0.0);
-            if (Fullscreen.state.follow.get()) {
-                Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), mapType, this.field_146297_k.field_71439_g.field_70165_t, this.field_146297_k.field_71439_g.field_70161_v, this.fullMapProperties.zoomLevel.get());
-            }
-            Fullscreen.gridRenderer.updateTiles(mapType, Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, false, 0.0, 0.0);
-            Fullscreen.gridRenderer.draw(1.0f, xOffset, yOffset, this.fullMapProperties.showGrid.get());
-            Fullscreen.gridRenderer.draw(Fullscreen.state.getDrawSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
-            Fullscreen.gridRenderer.draw(Fullscreen.state.getDrawWaypointSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
-            if (this.fullMapProperties.showSelf.get()) {
-                final Point2D playerPixel = Fullscreen.gridRenderer.getPixel(this.field_146297_k.field_71439_g.field_70165_t, this.field_146297_k.field_71439_g.field_70161_v);
-                if (playerPixel != null) {
-                    final boolean large = this.fullMapProperties.playerDisplay.get().isLarge();
-                    final TextureImpl bgTex = large ? TextureCache.getTexture(TextureCache.PlayerArrowBG_Large) : TextureCache.getTexture(TextureCache.PlayerArrowBG);
-                    final TextureImpl fgTex = large ? TextureCache.getTexture(TextureCache.PlayerArrow_Large) : TextureCache.getTexture(TextureCache.PlayerArrow);
-                    DrawUtil.drawColoredEntity(playerPixel.getX() + xOffset, playerPixel.getY() + yOffset, bgTex, 16777215, 1.0f, 1.0f, this.field_146297_k.field_71439_g.field_70759_as);
-                    final int playerColor = this.coreProperties.getColor(this.coreProperties.colorSelf);
-                    DrawUtil.drawColoredEntity(playerPixel.getX() + xOffset, playerPixel.getY() + yOffset, fgTex, playerColor, 1.0f, 1.0f, this.field_146297_k.field_71439_g.field_70759_as);
+            if (ClientFeatures.instance().isAllowed(Feature.Display.Fullscreen, Fullscreen.state.getDimension())) {
+                Fullscreen.gridRenderer.clearGlErrors(false);
+                Fullscreen.gridRenderer.updateRotation(0.0);
+                if (Fullscreen.state.follow.get()) {
+                    Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), mapView, this.player.field_70165_t, this.player.field_70161_v, this.fullMapProperties.zoomLevel.get());
                 }
+                Fullscreen.gridRenderer.updateTiles(mapView, Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, false, 0.0, 0.0);
+                Fullscreen.gridRenderer.draw(1.0f, xOffset, yOffset, this.fullMapProperties.showGrid.get());
+                Fullscreen.gridRenderer.draw(Fullscreen.state.getDrawSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
+                Fullscreen.gridRenderer.draw(Fullscreen.state.getDrawWaypointSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
+                if (this.fullMapProperties.showSelf.get()) {
+                    final Point2D playerPixel = Fullscreen.gridRenderer.getPixel(this.player.field_70165_t, this.player.field_70161_v);
+                    if (playerPixel != null) {
+                        final boolean large = this.fullMapProperties.playerDisplay.get().isLarge();
+                        final TextureImpl bgTex = large ? TextureCache.getTexture(TextureCache.PlayerArrowBG_Large) : TextureCache.getTexture(TextureCache.PlayerArrowBG);
+                        final TextureImpl fgTex = large ? TextureCache.getTexture(TextureCache.PlayerArrow_Large) : TextureCache.getTexture(TextureCache.PlayerArrow);
+                        DrawUtil.drawColoredEntity(playerPixel.getX() + xOffset, playerPixel.getY() + yOffset, bgTex, 16777215, 1.0f, 1.0f, this.player.field_70759_as);
+                        final int playerColor = this.coreProperties.getColor(this.coreProperties.colorSelf);
+                        DrawUtil.drawColoredEntity(playerPixel.getX() + xOffset, playerPixel.getY() + yOffset, fgTex, playerColor, 1.0f, 1.0f, this.player.field_70759_as);
+                    }
+                }
+                Fullscreen.gridRenderer.draw(this.layerDelegate.getDrawSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
             }
-            Fullscreen.gridRenderer.draw(this.layerDelegate.getDrawSteps(), xOffset, yOffset, this.getMapFontScale(), 0.0);
             this.drawLogo();
             this.sizeDisplay(true);
         }
@@ -815,12 +860,13 @@ public class Fullscreen extends JmUI implements ITabCompleter
     }
     
     public void centerOn(final Waypoint waypoint) {
-        if (waypoint.getDimensions().contains(this.field_146297_k.field_71439_g.field_71093_bK)) {
+        if (waypoint.isDisplayed(Fullscreen.state.getDimension())) {
             Fullscreen.state.follow.set(false);
             Fullscreen.state.requireRefresh();
-            final int x = waypoint.getX();
-            final int z = waypoint.getZ();
-            Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), Fullscreen.state.getMapType(), x, z, this.fullMapProperties.zoomLevel.get());
+            final BlockPos pos = waypoint.getPosition(Fullscreen.state.getDimension());
+            final int x = pos.func_177958_n();
+            final int z = pos.func_177952_p();
+            Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), Fullscreen.state.getMapView(), x, z, this.fullMapProperties.zoomLevel.get());
             if (!waypoint.isPersistent()) {
                 this.addTempMarker(waypoint);
             }
@@ -831,10 +877,10 @@ public class Fullscreen extends JmUI implements ITabCompleter
     
     public void addTempMarker(final Waypoint waypoint) {
         try {
-            final BlockPos pos = waypoint.getBlockPos();
-            final PolygonOverlay polygonOverlay = new PolygonOverlay("journeymap", waypoint.getName(), this.field_146297_k.field_71439_g.field_71093_bK, new ShapeProperties().setStrokeColor(255).setStrokeOpacity(1.0f).setStrokeWidth(1.5f), new MapPolygon(new BlockPos[] { pos.func_177982_a(-1, 0, 2), pos.func_177982_a(2, 0, 2), pos.func_177982_a(2, 0, -1), pos.func_177982_a(-1, 0, -1) }));
-            polygonOverlay.setActiveMapTypes(EnumSet.allOf(Context.MapType.class));
-            polygonOverlay.setActiveUIs(EnumSet.of(Context.UI.Fullscreen));
+            final BlockPos pos = waypoint.getPosition(Fullscreen.state.getDimension());
+            final PolygonOverlay polygonOverlay = new PolygonOverlay("journeymap", waypoint.getName(), this.player.field_71093_bK, new ShapeProperties().setStrokeColor(255).setStrokeOpacity(1.0f).setStrokeWidth(1.5f), new MapPolygon(new BlockPos[] { pos.func_177982_a(-1, 0, 2), pos.func_177982_a(2, 0, 2), pos.func_177982_a(2, 0, -1), pos.func_177982_a(-1, 0, -1) }));
+            polygonOverlay.setActiveMapTypes(EnumSet.allOf(Feature.MapType.class));
+            polygonOverlay.setActiveUIs(EnumSet.of(Feature.Display.Fullscreen));
             polygonOverlay.setLabel(waypoint.getName());
             this.tempOverlays.add(polygonOverlay);
             ClientAPI.INSTANCE.show(polygonOverlay);
@@ -845,8 +891,8 @@ public class Fullscreen extends JmUI implements ITabCompleter
     }
     
     void refreshState() {
-        final EntityPlayerSP player = this.field_146297_k.field_71439_g;
-        if (player == null) {
+        this.player = Journeymap.clientPlayer();
+        if (this.player == null) {
             this.logger.warn("Could not get player");
             return;
         }
@@ -856,19 +902,21 @@ public class Fullscreen extends JmUI implements ITabCompleter
             this.menuToolbarBounds = null;
             this.optionsToolbarBounds = null;
             this.fullMapProperties = Journeymap.getClient().getFullMapProperties();
-            Fullscreen.state.refresh(this.field_146297_k, (EntityPlayer)player, this.fullMapProperties);
-            final MapType mapType = Fullscreen.state.getMapType();
-            Fullscreen.gridRenderer.setContext(Fullscreen.state.getWorldDir(), mapType);
+            Fullscreen.state.refresh(this.field_146297_k, (EntityPlayer)this.player, this.fullMapProperties);
+            final MapView mapView = Fullscreen.state.getMapView();
+            Fullscreen.gridRenderer.setContext(Fullscreen.state.getWorldDir(), mapView);
             if (Fullscreen.state.follow.get()) {
-                Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), mapType, this.field_146297_k.field_71439_g.field_70165_t, this.field_146297_k.field_71439_g.field_70161_v, this.fullMapProperties.zoomLevel.get());
+                Fullscreen.gridRenderer.center(Fullscreen.state.getWorldDir(), mapView, this.player.field_70165_t, this.player.field_70161_v, this.fullMapProperties.zoomLevel.get());
             }
             else {
                 Fullscreen.gridRenderer.setZoom(this.fullMapProperties.zoomLevel.get());
             }
-            Fullscreen.gridRenderer.updateTiles(mapType, Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, true, 0.0, 0.0);
+            if (!mapView.isNone()) {
+                Fullscreen.gridRenderer.updateTiles(mapView, Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, true, 0.0, 0.0);
+            }
             Fullscreen.state.generateDrawSteps(this.field_146297_k, Fullscreen.gridRenderer, this.waypointRenderer, this.radarRenderer, this.fullMapProperties, false);
             final LocationFormat.LocationFormatKeys locationFormatKeys = this.locationFormat.getFormatKeys(this.fullMapProperties.locationFormat.get());
-            Fullscreen.state.playerLastPos = locationFormatKeys.format(this.fullMapProperties.locationFormatVerbose.get(), MathHelper.func_76128_c(this.field_146297_k.field_71439_g.field_70165_t), MathHelper.func_76128_c(this.field_146297_k.field_71439_g.field_70161_v), MathHelper.func_76128_c(this.field_146297_k.field_71439_g.func_174813_aQ().field_72338_b), this.field_146297_k.field_71439_g.field_70162_ai) + " " + Fullscreen.state.getPlayerBiome();
+            Fullscreen.state.playerLastPos = locationFormatKeys.format(this.fullMapProperties.locationFormatVerbose.get(), MathHelper.func_76128_c(this.player.field_70165_t), MathHelper.func_76128_c(this.player.field_70161_v), MathHelper.func_76128_c(this.player.func_174813_aQ().field_72338_b), this.player.field_70162_ai) + " " + Fullscreen.state.getPlayerBiome();
             Fullscreen.state.updateLastRefresh();
         }
         finally {
@@ -914,14 +962,14 @@ public class Fullscreen extends JmUI implements ITabCompleter
     public void moveCanvas(final int deltaBlockX, final int deltaBlockz) {
         this.refreshState();
         Fullscreen.gridRenderer.move(deltaBlockX, deltaBlockz);
-        Fullscreen.gridRenderer.updateTiles(Fullscreen.state.getMapType(), Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, true, 0.0, 0.0);
+        Fullscreen.gridRenderer.updateTiles(Fullscreen.state.getMapView(), Fullscreen.state.getZoom(), Fullscreen.state.isHighQuality(), this.field_146297_k.field_71443_c, this.field_146297_k.field_71440_d, true, 0.0, 0.0);
         ClientAPI.INSTANCE.flagOverlaysForRerender();
         this.setFollow(false);
     }
     
     public void showCaveLayers() {
         if (!Fullscreen.state.isUnderground()) {
-            this.updateMapType(MapType.underground(3, Fullscreen.state.getDimension()));
+            this.updateMapType(MapView.underground(3, Fullscreen.state.getDimension()));
         }
     }
     
@@ -965,6 +1013,6 @@ public class Fullscreen extends JmUI implements ITabCompleter
     
     static {
         state = new MapState();
-        gridRenderer = new GridRenderer(Context.UI.Fullscreen, 5);
+        gridRenderer = new GridRenderer(Feature.Display.Fullscreen, 5);
     }
 }

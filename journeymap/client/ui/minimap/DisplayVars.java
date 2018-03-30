@@ -7,6 +7,7 @@ import journeymap.client.ui.option.*;
 import net.minecraft.client.*;
 import journeymap.client.properties.*;
 import journeymap.client.io.*;
+import journeymap.client.ui.component.*;
 import journeymap.client.render.draw.*;
 import net.minecraft.client.gui.*;
 import java.util.*;
@@ -91,7 +92,7 @@ public class DisplayVars
             this.reticleSegmentLength = Math.sqrt(this.minimapHeight * this.minimapHeight + this.minimapWidth * this.minimapWidth) / 2.0;
         }
         this.fontScale = miniMapProperties.fontScale.get();
-        final FontRenderer fontRenderer = mc.field_71466_p;
+        final FontRenderer fontRenderer = JmUI.fontRenderer();
         final int topInfoLabelsHeight = this.getInfoLabelAreaHeight(fontRenderer, this.minimapSpec.labelTop, miniMapProperties.info1Label.get(), miniMapProperties.info2Label.get());
         final int bottomInfoLabelsHeight = this.getInfoLabelAreaHeight(fontRenderer, this.minimapSpec.labelBottom, miniMapProperties.info3Label.get(), miniMapProperties.info4Label.get());
         final int compassFontScale = miniMapProperties.compassFontScale.get();
@@ -232,16 +233,16 @@ public class DisplayVars
         }
     }
     
-    MapPresetStatus getMapPresetStatus(final MapType mapType, final int miniMapId) {
-        if (this.mapPresetStatus == null || !mapType.equals(this.mapPresetStatus.mapType) || miniMapId != this.mapPresetStatus.miniMapId) {
-            this.mapPresetStatus = new MapPresetStatus(mapType, miniMapId);
+    MapPresetStatus getMapPresetStatus(final MapView mapView, final int miniMapId) {
+        if (this.mapPresetStatus == null || !mapView.equals(this.mapPresetStatus.mapView) || miniMapId != this.mapPresetStatus.miniMapId) {
+            this.mapPresetStatus = new MapPresetStatus(mapView, miniMapId);
         }
         return this.mapPresetStatus;
     }
     
-    MapTypeStatus getMapTypeStatus(final MapType mapType) {
-        if (this.mapTypeStatus == null || !mapType.equals(this.mapTypeStatus.mapType)) {
-            this.mapTypeStatus = new MapTypeStatus(mapType);
+    MapTypeStatus getMapTypeStatus(final MapView mapView) {
+        if (this.mapTypeStatus == null || !mapView.equals(this.mapTypeStatus.mapView)) {
+            this.mapTypeStatus = new MapTypeStatus(mapView);
         }
         return this.mapTypeStatus;
     }
@@ -250,14 +251,14 @@ public class DisplayVars
     {
         private int miniMapId;
         private int scale;
-        private MapType mapType;
+        private MapView mapView;
         private String name;
         private Integer color;
         
-        MapPresetStatus(final MapType mapType, final int miniMapId) {
+        MapPresetStatus(final MapView mapView, final int miniMapId) {
             this.scale = 4;
             this.miniMapId = miniMapId;
-            this.mapType = mapType;
+            this.mapView = mapView;
             this.color = 16777215;
             this.name = Integer.toString(miniMapId);
         }
@@ -269,7 +270,7 @@ public class DisplayVars
     
     class MapTypeStatus
     {
-        private MapType mapType;
+        private MapView mapView;
         private String name;
         private TextureImpl tex;
         private Integer color;
@@ -279,9 +280,9 @@ public class DisplayVars
         private float bgScale;
         private float scaleHeightOffset;
         
-        MapTypeStatus(final MapType mapType) {
-            this.mapType = mapType;
-            this.name = (mapType.isUnderground() ? "caves" : mapType.name());
+        MapTypeStatus(final MapView mapView) {
+            this.mapView = mapView;
+            this.name = (mapView.isUnderground() ? "caves" : mapView.name().toLowerCase());
             this.tex = TextureCache.getThemeTexture(DisplayVars.this.theme, String.format("icon/%s.png", this.name));
             this.color = 16777215;
             this.opposite = 4210752;

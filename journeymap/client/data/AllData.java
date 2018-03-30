@@ -1,8 +1,11 @@
 package journeymap.client.data;
 
 import com.google.common.cache.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import journeymap.common.*;
-import journeymap.client.model.*;
+import journeymap.client.waypoint.*;
+import journeymap.client.api.display.*;
 import com.google.common.collect.*;
 import java.util.*;
 
@@ -14,25 +17,41 @@ public class AllData extends CacheLoader<Long, Map>
         props.put(Key.world, cache.getWorld(false));
         props.put(Key.player, cache.getPlayer(false));
         props.put(Key.images, new ImagesData(since));
-        if (Journeymap.getClient().getWebMapProperties().showWaypoints.get()) {
-            final int currentDimension = cache.getPlayer(false).dimension;
-            final Collection<Waypoint> waypoints = cache.getWaypoints(false);
+        final int dim = cache.getPlayer(false).dimension;
+        if (ClientFeatures.instance().isAllowed(Feature.Radar.Waypoint, dim) && Journeymap.getClient().getWebMapProperties().showWaypoints.get()) {
+            final Collection<Waypoint> waypoints = WaypointStore.INSTANCE.getAll(dim);
             final Map<String, Waypoint> wpMap = new HashMap<String, Waypoint>();
             for (final Waypoint waypoint : waypoints) {
-                if (waypoint.getDimensions().contains(currentDimension)) {
-                    wpMap.put(waypoint.getId(), waypoint);
-                }
+                wpMap.put(waypoint.getId(), waypoint);
             }
             props.put(Key.waypoints, wpMap);
         }
         else {
             props.put(Key.waypoints, Collections.emptyMap());
         }
-        if (!WorldData.isHardcoreAndMultiplayer()) {
-            props.put(Key.animals, Collections.emptyMap());
-            props.put(Key.mobs, Collections.emptyMap());
+        if (ClientFeatures.instance().isAllowed(Feature.Radar.PassiveMob, dim)) {
+            props.put(Key.passiveMobs, cache.getPassiveMobs(false));
+        }
+        else {
+            props.put(Key.passiveMobs, Collections.emptyMap());
+        }
+        if (ClientFeatures.instance().isAllowed(Feature.Radar.HostileMob, dim)) {
+            props.put(Key.hostileMobs, cache.getHostileMobs(false));
+        }
+        else {
+            props.put(Key.hostileMobs, Collections.emptyMap());
+        }
+        if (ClientFeatures.instance().isAllowed(Feature.Radar.Player, dim)) {
+            props.put(Key.players, cache.getPlayers(false));
+        }
+        else {
             props.put(Key.players, Collections.emptyMap());
-            props.put(Key.villagers, Collections.emptyMap());
+        }
+        if (ClientFeatures.instance().isAllowed(Feature.Radar.NPC, dim)) {
+            props.put(Key.npcs, cache.getNpcs(false));
+        }
+        else {
+            props.put(Key.npcs, Collections.emptyMap());
         }
         return (Map)ImmutableMap.copyOf((Map)props);
     }
@@ -43,12 +62,12 @@ public class AllData extends CacheLoader<Long, Map>
     
     public enum Key
     {
-        animals, 
+        passiveMobs, 
         images, 
-        mobs, 
+        hostileMobs, 
         player, 
         players, 
-        villagers, 
+        npcs, 
         waypoints, 
         world;
     }

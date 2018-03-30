@@ -2,7 +2,6 @@ package journeymap.common.properties.config;
 
 import journeymap.common.properties.*;
 import com.google.common.base.*;
-import org.apache.logging.log4j.util.*;
 import journeymap.common.*;
 import journeymap.common.log.*;
 import java.util.*;
@@ -25,7 +24,7 @@ public class StringField extends ConfigField<String>
         if (validValues != null) {
             this.put("validValues", Joiner.on(",").join((Object[])validValues));
         }
-        if (!Strings.isEmpty((CharSequence)defaultValue)) {
+        if (!Strings.isNullOrEmpty(defaultValue)) {
             this.defaultValue(defaultValue);
             this.setToDefault();
         }
@@ -102,13 +101,13 @@ public class StringField extends ConfigField<String>
         final boolean hasCategory = this.getCategory() != null;
         boolean valid = hasRequired && hasCategory;
         final String value = this.get();
-        if (Strings.isNotEmpty((CharSequence)value)) {
+        if (!Strings.isNullOrEmpty(value)) {
             final String pattern = this.getPattern();
-            if (Strings.isNotEmpty((CharSequence)pattern)) {
+            if (!Strings.isNullOrEmpty(pattern)) {
                 final boolean patternValid = value.matches(pattern);
                 if (!patternValid) {
                     Journeymap.getLogger().warn(String.format("Value '%s' doesn't match pattern '%s' for %s", value, pattern, this));
-                    if (fix && Strings.isNotEmpty((CharSequence)this.getDefaultValue())) {
+                    if (fix && !Strings.isNullOrEmpty(this.getDefaultValue())) {
                         this.setToDefault();
                         Journeymap.getLogger().warn(String.format("Value set to default '%s' for %s", this.getDefaultValue(), this));
                     }
@@ -122,7 +121,7 @@ public class StringField extends ConfigField<String>
         if (validValues != null && !validValues.contains(value)) {
             Journeymap.getLogger().warn(String.format("Value '%s' isn't in one of the valid values '%s' for %s", value, this.getStringAttr("validValues"), this));
             final String defaultValue = this.getDefaultValue();
-            if (fix && Strings.isNotEmpty((CharSequence)defaultValue)) {
+            if (fix && !Strings.isNullOrEmpty(defaultValue)) {
                 this.setToDefault();
                 Journeymap.getLogger().warn(String.format("Value set to default '%s' for %s", defaultValue, this));
             }
@@ -135,7 +134,7 @@ public class StringField extends ConfigField<String>
     
     public List<String> getValidValues() {
         final String validValuesString = this.getStringAttr("validValues");
-        if (!Strings.isEmpty((CharSequence)validValuesString)) {
+        if (!Strings.isNullOrEmpty(validValuesString)) {
             return Arrays.asList(validValuesString.split(","));
         }
         return null;

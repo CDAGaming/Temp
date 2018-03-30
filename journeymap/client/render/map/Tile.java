@@ -54,9 +54,9 @@ public class Tile
         this.updateRenderType();
     }
     
-    public static Tile create(final int tileX, final int tileZ, final int zoom, final File worldDir, final MapType mapType, final boolean highQuality) {
+    public static Tile create(final int tileX, final int tileZ, final int zoom, final File worldDir, final MapView mapView, final boolean highQuality) {
         final Tile tile = new Tile(tileX, tileZ, zoom);
-        tile.updateTexture(worldDir, mapType, highQuality);
+        tile.updateTexture(worldDir, mapView, highQuality);
         return tile;
     }
     
@@ -102,19 +102,19 @@ public class Tile
         Fullscreen.state().requireRefresh();
     }
     
-    public boolean updateTexture(final File worldDir, final MapType mapType, final boolean highQuality) {
+    public boolean updateTexture(final File worldDir, final MapView mapView, final boolean highQuality) {
         this.updateRenderType();
         this.drawSteps.clear();
-        this.drawSteps.addAll(RegionImageHandler.getTileDrawSteps(worldDir, this.ulChunk, this.lrChunk, mapType, this.zoom, highQuality));
+        this.drawSteps.addAll(RegionImageHandler.getTileDrawSteps(worldDir, this.ulChunk, this.lrChunk, mapView, this.zoom, highQuality));
         return this.drawSteps.size() > 1;
     }
     
-    public boolean hasTexture(final MapType mapType) {
+    public boolean hasTexture(final MapView mapView) {
         if (this.drawSteps.isEmpty()) {
             return false;
         }
         for (final TileDrawStep tileDrawStep : this.drawSteps) {
-            if (tileDrawStep.hasTexture(mapType)) {
+            if (tileDrawStep.hasTexture(mapView)) {
                 return true;
             }
         }

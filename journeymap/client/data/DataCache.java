@@ -1,18 +1,17 @@
 package journeymap.client.data;
 
 import net.minecraft.entity.*;
+import journeymap.client.api.display.*;
 import journeymap.client.render.draw.*;
 import net.minecraft.block.state.*;
 import journeymap.client.model.*;
 import journeymap.common.*;
 import journeymap.common.log.*;
 import java.util.concurrent.*;
-import journeymap.client.waypoint.*;
+import journeymap.common.api.feature.*;
 import com.google.common.collect.*;
 import net.minecraft.util.math.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.client.io.nbt.*;
-import net.minecraft.world.*;
 import java.util.*;
 import com.google.common.cache.*;
 
@@ -21,20 +20,20 @@ public enum DataCache
     INSTANCE;
     
     final LoadingCache<Long, Map> all;
-    final LoadingCache<Class, Map<String, EntityDTO>> animals;
-    final LoadingCache<Class, Map<String, EntityDTO>> mobs;
+    final LoadingCache<Class, Map<String, EntityDTO>> passiveMobs;
+    final LoadingCache<Class, Map<String, EntityDTO>> hostileMobs;
     final LoadingCache<Class, Map<String, EntityDTO>> players;
-    final LoadingCache<Class, Map<String, EntityDTO>> villagers;
-    final LoadingCache<Class, Collection<Waypoint>> waypoints;
+    final LoadingCache<Class, Map<String, EntityDTO>> npcs;
+    final LoadingCache<Class, Map<String, EntityDTO>> vehicles;
     final LoadingCache<Class, EntityDTO> player;
     final LoadingCache<Class, WorldData> world;
     final LoadingCache<RegionImageSet.Key, RegionImageSet> regionImageSets;
     final LoadingCache<Class, Map<String, Object>> messages;
-    final LoadingCache<EntityLivingBase, DrawEntityStep> entityDrawSteps;
+    final LoadingCache<Entity, DrawEntityStep> entityDrawSteps;
     final LoadingCache<Waypoint, DrawWayPointStep> waypointDrawSteps;
-    final LoadingCache<EntityLivingBase, EntityDTO> entityDTOs;
+    final LoadingCache<Entity, EntityDTO> entityDTOs;
     final Cache<String, RegionCoord> regionCoords;
-    final Cache<String, MapType> mapTypes;
+    final Cache<String, MapView> mapViews;
     final LoadingCache<IBlockState, BlockMD> blockMetadata;
     final Cache<ChunkPos, ChunkMD> chunkMetadata;
     final HashMap<Cache, String> managedCaches;
@@ -46,35 +45,35 @@ public enum DataCache
         final AllData allData = new AllData();
         this.all = (LoadingCache<Long, Map>)this.getCacheBuilder().maximumSize(1L).expireAfterWrite(allData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)allData);
         this.managedCaches.put((Cache)this.all, "AllData (web)");
-        final AnimalsData animalsData = new AnimalsData();
-        this.animals = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(animalsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)animalsData);
-        this.managedCaches.put((Cache)this.animals, "Animals");
-        final MobsData mobsData = new MobsData();
-        this.mobs = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(mobsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)mobsData);
-        this.managedCaches.put((Cache)this.mobs, "Mobs");
+        final PassiveMobsData passiveMobsData = new PassiveMobsData();
+        this.passiveMobs = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(passiveMobsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)passiveMobsData);
+        this.managedCaches.put((Cache)this.passiveMobs, "PassiveMobs");
+        final HostileMobsData hostileMobsData = new HostileMobsData();
+        this.hostileMobs = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(hostileMobsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)hostileMobsData);
+        this.managedCaches.put((Cache)this.hostileMobs, "HostileMobs");
         final PlayerData playerData = new PlayerData();
         this.player = (LoadingCache<Class, EntityDTO>)this.getCacheBuilder().expireAfterWrite(playerData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)playerData);
         this.managedCaches.put((Cache)this.player, "Player");
         final PlayersData playersData = new PlayersData();
         this.players = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(playersData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)playersData);
         this.managedCaches.put((Cache)this.players, "Players");
-        final VillagersData villagersData = new VillagersData();
-        this.villagers = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(villagersData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)villagersData);
-        this.managedCaches.put((Cache)this.villagers, "Villagers");
-        final WaypointsData waypointsData = new WaypointsData();
-        this.waypoints = (LoadingCache<Class, Collection<Waypoint>>)this.getCacheBuilder().expireAfterWrite(waypointsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)waypointsData);
-        this.managedCaches.put((Cache)this.waypoints, "Waypoints");
+        final NpcsData npcsData = new NpcsData();
+        this.npcs = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(npcsData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)npcsData);
+        this.managedCaches.put((Cache)this.npcs, "Npcs");
+        final VehiclesData vehiclesData = new VehiclesData();
+        this.vehicles = (LoadingCache<Class, Map<String, EntityDTO>>)this.getCacheBuilder().expireAfterWrite(vehiclesData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)vehiclesData);
+        this.managedCaches.put((Cache)this.vehicles, "Vehicles");
         final WorldData worldData = new WorldData();
         this.world = (LoadingCache<Class, WorldData>)this.getCacheBuilder().expireAfterWrite(worldData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)worldData);
         this.managedCaches.put((Cache)this.world, "World");
         final MessagesData messagesData = new MessagesData();
         this.messages = (LoadingCache<Class, Map<String, Object>>)this.getCacheBuilder().expireAfterWrite(messagesData.getTTL(), TimeUnit.MILLISECONDS).build((CacheLoader)messagesData);
         this.managedCaches.put((Cache)this.messages, "Messages (web)");
-        this.entityDrawSteps = (LoadingCache<EntityLivingBase, DrawEntityStep>)this.getCacheBuilder().weakKeys().build((CacheLoader)new DrawEntityStep.SimpleCacheLoader());
+        this.entityDrawSteps = (LoadingCache<Entity, DrawEntityStep>)this.getCacheBuilder().weakKeys().build((CacheLoader)new DrawEntityStep.SimpleCacheLoader());
         this.managedCaches.put((Cache)this.entityDrawSteps, "DrawEntityStep");
         this.waypointDrawSteps = (LoadingCache<Waypoint, DrawWayPointStep>)this.getCacheBuilder().weakKeys().build((CacheLoader)new DrawWayPointStep.SimpleCacheLoader());
         this.managedCaches.put((Cache)this.waypointDrawSteps, "DrawWaypointStep");
-        this.entityDTOs = (LoadingCache<EntityLivingBase, EntityDTO>)this.getCacheBuilder().weakKeys().build((CacheLoader)new EntityDTO.SimpleCacheLoader());
+        this.entityDTOs = (LoadingCache<Entity, EntityDTO>)this.getCacheBuilder().weakKeys().build((CacheLoader)new EntityDTO.SimpleCacheLoader());
         this.managedCaches.put((Cache)this.entityDTOs, "EntityDTO");
         this.regionImageSets = RegionImageCache.INSTANCE.initRegionImageSetsCache(this.getCacheBuilder());
         this.managedCaches.put((Cache)this.regionImageSets, "RegionImageSet");
@@ -84,8 +83,8 @@ public enum DataCache
         this.managedCaches.put(this.chunkMetadata, "ChunkMD");
         this.regionCoords = (Cache<String, RegionCoord>)this.getCacheBuilder().expireAfterAccess(30L, TimeUnit.SECONDS).build();
         this.managedCaches.put(this.regionCoords, "RegionCoord");
-        this.mapTypes = (Cache<String, MapType>)this.getCacheBuilder().build();
-        this.managedCaches.put(this.mapTypes, "MapType");
+        this.mapViews = (Cache<String, MapView>)this.getCacheBuilder().build();
+        this.managedCaches.put(this.mapViews, "MapType");
     }
     
     public static EntityDTO getPlayer() {
@@ -113,31 +112,46 @@ public enum DataCache
         }
     }
     
-    public Map<String, EntityDTO> getAnimals(final boolean forceRefresh) {
-        synchronized (this.animals) {
+    public Map<String, EntityDTO> getPassiveMobs(final boolean forceRefresh) {
+        synchronized (this.passiveMobs) {
             try {
                 if (forceRefresh) {
-                    this.animals.invalidateAll();
+                    this.passiveMobs.invalidateAll();
                 }
-                return (Map<String, EntityDTO>)this.animals.get((Object)AnimalsData.class);
+                return (Map<String, EntityDTO>)this.passiveMobs.get((Object)PassiveMobsData.class);
             }
             catch (ExecutionException e) {
-                Journeymap.getLogger().error("ExecutionException in getAnimals: " + LogFormatter.toString(e));
+                Journeymap.getLogger().error("ExecutionException in getPassiveMobs: " + LogFormatter.toString(e));
                 return (Map<String, EntityDTO>)Collections.EMPTY_MAP;
             }
         }
     }
     
-    public Map<String, EntityDTO> getMobs(final boolean forceRefresh) {
-        synchronized (this.mobs) {
+    public Map<String, EntityDTO> getVehicles(final boolean forceRefresh) {
+        synchronized (this.vehicles) {
             try {
                 if (forceRefresh) {
-                    this.mobs.invalidateAll();
+                    this.vehicles.invalidateAll();
                 }
-                return (Map<String, EntityDTO>)this.mobs.get((Object)MobsData.class);
+                return (Map<String, EntityDTO>)this.vehicles.get((Object)PassiveMobsData.class);
             }
             catch (ExecutionException e) {
-                Journeymap.getLogger().error("ExecutionException in getMobs: " + LogFormatter.toString(e));
+                Journeymap.getLogger().error("ExecutionException in getVehicles: " + LogFormatter.toString(e));
+                return (Map<String, EntityDTO>)Collections.EMPTY_MAP;
+            }
+        }
+    }
+    
+    public Map<String, EntityDTO> getHostileMobs(final boolean forceRefresh) {
+        synchronized (this.hostileMobs) {
+            try {
+                if (forceRefresh) {
+                    this.hostileMobs.invalidateAll();
+                }
+                return (Map<String, EntityDTO>)this.hostileMobs.get((Object)HostileMobsData.class);
+            }
+            catch (ExecutionException e) {
+                Journeymap.getLogger().error("ExecutionException in getHostileMobs: " + LogFormatter.toString(e));
                 return (Map<String, EntityDTO>)Collections.EMPTY_MAP;
             }
         }
@@ -173,38 +187,29 @@ public enum DataCache
         }
     }
     
-    public Map<String, EntityDTO> getVillagers(final boolean forceRefresh) {
-        synchronized (this.villagers) {
+    public Map<String, EntityDTO> getNpcs(final boolean forceRefresh) {
+        synchronized (this.npcs) {
             try {
                 if (forceRefresh) {
-                    this.villagers.invalidateAll();
+                    this.npcs.invalidateAll();
                 }
-                return (Map<String, EntityDTO>)this.villagers.get((Object)VillagersData.class);
+                return (Map<String, EntityDTO>)this.npcs.get((Object)NpcsData.class);
             }
             catch (ExecutionException e) {
-                Journeymap.getLogger().error("ExecutionException in getVillagers: " + LogFormatter.toString(e));
+                Journeymap.getLogger().error("ExecutionException in getNpcs: " + LogFormatter.toString(e));
                 return (Map<String, EntityDTO>)Collections.EMPTY_MAP;
             }
         }
     }
     
-    public MapType getMapType(final MapType.Name name, Integer vSlice, final int dimension) {
-        vSlice = ((name != MapType.Name.underground) ? null : vSlice);
-        MapType mapType = (MapType)this.mapTypes.getIfPresent((Object)MapType.toCacheKey(name, vSlice, dimension));
-        if (mapType == null) {
-            mapType = new MapType(name, vSlice, dimension);
-            this.mapTypes.put((Object)mapType.toCacheKey(), (Object)mapType);
+    public MapView getMapView(final Feature.MapType mapType, Integer vSlice, final int dimension) {
+        vSlice = ((mapType != Feature.MapType.Underground) ? null : vSlice);
+        MapView mapView = (MapView)this.mapViews.getIfPresent((Object)MapView.toCacheKey(mapType, vSlice, dimension));
+        if (mapView == null) {
+            mapView = new MapView(mapType, vSlice, dimension);
+            this.mapViews.put((Object)mapView.toCacheKey(), (Object)mapView);
         }
-        return mapType;
-    }
-    
-    public Collection<Waypoint> getWaypoints(final boolean forceRefresh) {
-        synchronized (this.waypoints) {
-            if (WaypointsData.isManagerEnabled()) {
-                return WaypointStore.INSTANCE.getAll();
-            }
-            return (Collection<Waypoint>)Collections.EMPTY_LIST;
-        }
+        return mapView;
     }
     
     public Map<String, Object> getMessages(final boolean forceRefresh) {
@@ -238,21 +243,21 @@ public enum DataCache
     }
     
     public void resetRadarCaches() {
-        this.animals.invalidateAll();
-        this.mobs.invalidateAll();
+        this.passiveMobs.invalidateAll();
+        this.hostileMobs.invalidateAll();
         this.players.invalidateAll();
-        this.villagers.invalidateAll();
+        this.npcs.invalidateAll();
         this.entityDrawSteps.invalidateAll();
         this.entityDTOs.invalidateAll();
     }
     
-    public DrawEntityStep getDrawEntityStep(final EntityLivingBase entity) {
+    public DrawEntityStep getDrawEntityStep(final Entity entity) {
         synchronized (this.entityDrawSteps) {
             return (DrawEntityStep)this.entityDrawSteps.getUnchecked((Object)entity);
         }
     }
     
-    public EntityDTO getEntityDTO(final EntityLivingBase entity) {
+    public EntityDTO getEntityDTO(final Entity entity) {
         synchronized (this.entityDTOs) {
             return (EntityDTO)this.entityDTOs.getUnchecked((Object)entity);
         }
@@ -307,7 +312,7 @@ public enum DataCache
                 if (chunkMD != null && chunkMD.hasChunk()) {
                     return chunkMD;
                 }
-                chunkMD = ChunkLoader.getChunkMdFromMemory((World)FMLClientHandler.instance().getClient().field_71441_e, coord.field_77276_a, coord.field_77275_b);
+                chunkMD = ChunkLoader.getChunkMdFromMemory(Journeymap.clientWorld(), coord.field_77276_a, coord.field_77275_b);
                 if (chunkMD != null && chunkMD.hasChunk()) {
                     this.chunkMetadata.put((Object)coord, (Object)chunkMD);
                     return chunkMD;

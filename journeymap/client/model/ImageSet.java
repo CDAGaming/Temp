@@ -8,13 +8,13 @@ import java.io.*;
 
 public abstract class ImageSet
 {
-    protected final Map<MapType, ImageHolder> imageHolders;
+    protected final Map<MapView, ImageHolder> imageHolders;
     
     public ImageSet() {
-        this.imageHolders = Collections.synchronizedMap(new HashMap<MapType, ImageHolder>(8));
+        this.imageHolders = Collections.synchronizedMap(new HashMap<MapView, ImageHolder>(8));
     }
     
-    protected abstract ImageHolder getHolder(final MapType p0);
+    protected abstract ImageHolder getHolder(final MapView p0);
     
     @Override
     public abstract int hashCode();
@@ -22,8 +22,8 @@ public abstract class ImageSet
     @Override
     public abstract boolean equals(final Object p0);
     
-    public BufferedImage getImage(final MapType mapType) {
-        return this.getHolder(mapType).getImage();
+    public BufferedImage getImage(final MapView mapView) {
+        return this.getHolder(mapView).getImage();
     }
     
     public int writeToDiskAsync(final boolean force) {
@@ -53,9 +53,9 @@ public abstract class ImageSet
         return count;
     }
     
-    public boolean updatedSince(final MapType mapType, final long time) {
+    public boolean updatedSince(final MapView mapView, final long time) {
         synchronized (this.imageHolders) {
-            if (mapType == null) {
+            if (mapView == null) {
                 for (final ImageHolder holder : this.imageHolders.values()) {
                     if (holder != null && holder.getImageTimestamp() >= time) {
                         return true;
@@ -63,7 +63,7 @@ public abstract class ImageSet
                 }
             }
             else {
-                final ImageHolder imageHolder = this.imageHolders.get(mapType);
+                final ImageHolder imageHolder = this.imageHolders.get(mapView);
                 if (imageHolder != null && imageHolder.getImageTimestamp() >= time) {
                     return true;
                 }
@@ -88,12 +88,12 @@ public abstract class ImageSet
     
     protected abstract int getImageSize();
     
-    protected ImageHolder addHolder(final MapType mapType, final File imageFile) {
-        return this.addHolder(new ImageHolder(mapType, imageFile, this.getImageSize()));
+    protected ImageHolder addHolder(final MapView mapView, final File imageFile) {
+        return this.addHolder(new ImageHolder(mapView, imageFile, this.getImageSize()));
     }
     
     protected ImageHolder addHolder(final ImageHolder imageHolder) {
-        this.imageHolders.put(imageHolder.mapType, imageHolder);
+        this.imageHolders.put(imageHolder.mapView, imageHolder);
         return imageHolder;
     }
 }

@@ -7,6 +7,7 @@ import journeymap.client.model.*;
 import net.minecraft.util.math.*;
 import journeymap.common.*;
 import journeymap.client.properties.*;
+import net.minecraft.client.entity.*;
 import com.google.common.collect.*;
 import journeymap.client.data.*;
 import java.util.*;
@@ -22,7 +23,7 @@ public class RenderSpec
     private static volatile RenderSpec lastUndergroundRenderSpec;
     private static Minecraft minecraft;
     private final EntityPlayer player;
-    private final MapType mapType;
+    private final MapView mapView;
     private final int primaryRenderDistance;
     private final int maxSecondaryRenderDistance;
     private final RevealShape revealShape;
@@ -35,14 +36,14 @@ public class RenderSpec
     private int lastTaskChunks;
     private double lastTaskAvgChunkTime;
     
-    private RenderSpec(final Minecraft minecraft, final MapType mapType) {
+    private RenderSpec(final Minecraft minecraft, final MapView mapView) {
         this.offsets = null;
-        this.player = (EntityPlayer)minecraft.field_71439_g;
+        this.player = (EntityPlayer)Journeymap.clientPlayer();
         final CoreProperties props = Journeymap.getClient().getCoreProperties();
         final int gameRenderDistance = Math.max(1, minecraft.field_71474_y.field_151451_c - 1);
         final int mapRenderDistanceMin;
-        final int mapRenderDistanceMax = mapRenderDistanceMin = (mapType.isUnderground() ? props.renderDistanceCaveMax.get() : props.renderDistanceSurfaceMax.get());
-        this.mapType = mapType;
+        final int mapRenderDistanceMax = mapRenderDistanceMin = (mapView.isUnderground() ? props.renderDistanceCaveMax.get() : props.renderDistanceSurfaceMax.get());
+        this.mapView = mapView;
         int rdMin = Math.min(gameRenderDistance, mapRenderDistanceMin);
         final int rdMax = Math.min(gameRenderDistance, Math.max(rdMin, mapRenderDistanceMax));
         if (rdMin + 1 == rdMax) {
@@ -51,13 +52,14 @@ public class RenderSpec
         this.primaryRenderDistance = rdMin;
         this.maxSecondaryRenderDistance = rdMax;
         this.revealShape = Journeymap.getClient().getCoreProperties().revealShape.get();
-        this.lastPlayerCoord = new ChunkPos(minecraft.field_71439_g.field_70176_ah, minecraft.field_71439_g.field_70164_aj);
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        this.lastPlayerCoord = new ChunkPos(player.field_70176_ah, player.field_70164_aj);
         this.lastSecondaryRenderDistance = this.primaryRenderDistance;
     }
     
     private static Double blockDistance(final ChunkPos playerCoord, final ChunkPos coord) {
-        final int x = (playerCoord.field_77276_a << 4) + 8 - ((coord.field_77276_a << 4) + 8);
-        final int z = (playerCoord.field_77275_b << 4) + 8 - ((coord.field_77275_b << 4) + 8);
+        final int x = playerCoord.func_180334_c() - coord.func_180334_c();
+        final int z = playerCoord.func_180333_d() - coord.func_180333_d();
         return Math.sqrt(x * x + z * z);
     }
     
@@ -106,8 +108,9 @@ public class RenderSpec
     }
     
     public static RenderSpec getSurfaceSpec() {
-        if (RenderSpec.lastSurfaceRenderSpec == null || RenderSpec.lastSurfaceRenderSpec.lastPlayerCoord.field_77276_a != RenderSpec.minecraft.field_71439_g.field_70176_ah || RenderSpec.lastSurfaceRenderSpec.lastPlayerCoord.field_77275_b != RenderSpec.minecraft.field_71439_g.field_70164_aj) {
-            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapType.day(DataCache.getPlayer()));
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player != null && (RenderSpec.lastSurfaceRenderSpec == null || RenderSpec.lastSurfaceRenderSpec.lastPlayerCoord.field_77276_a != player.field_70176_ah || RenderSpec.lastSurfaceRenderSpec.lastPlayerCoord.field_77275_b != player.field_70164_aj)) {
+            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapView.day(DataCache.getPlayer()));
             newSpec.copyLastStatsFrom(RenderSpec.lastSurfaceRenderSpec);
             RenderSpec.lastSurfaceRenderSpec = newSpec;
         }
@@ -115,8 +118,9 @@ public class RenderSpec
     }
     
     public static RenderSpec getTopoSpec() {
-        if (RenderSpec.lastTopoRenderSpec == null || RenderSpec.lastTopoRenderSpec.lastPlayerCoord.field_77276_a != RenderSpec.minecraft.field_71439_g.field_70176_ah || RenderSpec.lastTopoRenderSpec.lastPlayerCoord.field_77275_b != RenderSpec.minecraft.field_71439_g.field_70164_aj) {
-            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapType.topo(DataCache.getPlayer()));
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player != null && (RenderSpec.lastTopoRenderSpec == null || RenderSpec.lastTopoRenderSpec.lastPlayerCoord.field_77276_a != player.field_70176_ah || RenderSpec.lastTopoRenderSpec.lastPlayerCoord.field_77275_b != player.field_70164_aj)) {
+            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapView.topo(DataCache.getPlayer()));
             newSpec.copyLastStatsFrom(RenderSpec.lastTopoRenderSpec);
             RenderSpec.lastTopoRenderSpec = newSpec;
         }
@@ -124,8 +128,9 @@ public class RenderSpec
     }
     
     public static RenderSpec getUndergroundSpec() {
-        if (RenderSpec.lastUndergroundRenderSpec == null || RenderSpec.lastUndergroundRenderSpec.lastPlayerCoord.field_77276_a != RenderSpec.minecraft.field_71439_g.field_70176_ah || RenderSpec.lastUndergroundRenderSpec.lastPlayerCoord.field_77275_b != RenderSpec.minecraft.field_71439_g.field_70164_aj) {
-            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapType.underground(DataCache.getPlayer()));
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player != null && (RenderSpec.lastUndergroundRenderSpec == null || RenderSpec.lastUndergroundRenderSpec.lastPlayerCoord.field_77276_a != player.field_70176_ah || RenderSpec.lastUndergroundRenderSpec.lastPlayerCoord.field_77275_b != player.field_70164_aj)) {
+            final RenderSpec newSpec = new RenderSpec(RenderSpec.minecraft, MapView.underground(DataCache.getPlayer()));
             newSpec.copyLastStatsFrom(RenderSpec.lastUndergroundRenderSpec);
             RenderSpec.lastUndergroundRenderSpec = newSpec;
         }
@@ -147,7 +152,7 @@ public class RenderSpec
             this.primaryRenderCoords = null;
             this.lastSecondaryRenderDistance = this.primaryRenderDistance;
         }
-        this.lastPlayerCoord = new ChunkPos(RenderSpec.minecraft.field_71439_g.field_70176_ah, RenderSpec.minecraft.field_71439_g.field_70164_aj);
+        this.lastPlayerCoord = new ChunkPos(this.player.field_70176_ah, this.player.field_70164_aj);
         if (this.primaryRenderCoords == null || this.primaryRenderCoords.isEmpty()) {
             final List<Offset> primaryOffsets = (List<Offset>)this.offsets.get((Object)this.primaryRenderDistance);
             this.primaryRenderCoords = new ArrayList<ChunkPos>(primaryOffsets.size());
@@ -176,15 +181,15 @@ public class RenderSpec
     }
     
     public Boolean isUnderground() {
-        return this.mapType.isUnderground();
+        return this.mapView.isUnderground();
     }
     
     public Boolean isTopo() {
-        return this.mapType.isTopo();
+        return this.mapView.isTopo();
     }
     
     public Boolean getSurface() {
-        return this.mapType.isSurface();
+        return this.mapView.isSurface();
     }
     
     public int getPrimaryRenderDistance() {
@@ -256,12 +261,12 @@ public class RenderSpec
             return false;
         }
         final RenderSpec that = (RenderSpec)o;
-        return this.maxSecondaryRenderDistance == that.maxSecondaryRenderDistance && this.primaryRenderDistance == that.primaryRenderDistance && this.revealShape == that.revealShape && this.mapType.equals(that.mapType);
+        return this.maxSecondaryRenderDistance == that.maxSecondaryRenderDistance && this.primaryRenderDistance == that.primaryRenderDistance && this.revealShape == that.revealShape && this.mapView.equals(that.mapView);
     }
     
     @Override
     public int hashCode() {
-        int result = this.mapType.hashCode();
+        int result = this.mapView.hashCode();
         result = 31 * result + this.primaryRenderDistance;
         result = 31 * result + this.maxSecondaryRenderDistance;
         result = 31 * result + this.revealShape.hashCode();

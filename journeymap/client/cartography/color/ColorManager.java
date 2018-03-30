@@ -153,7 +153,7 @@ public enum ColorManager
             if (this.currentPalette.isDirty()) {
                 final long elapsed = System.currentTimeMillis() - start;
                 this.currentPalette.writeToFile();
-                this.logger.info(String.format("Updated color palette for %s blockstates in %sms: %s", this.currentPalette.size(), elapsed, this.currentPalette.getOrigin()));
+                this.logger.info(String.format("Update color palette for %s blockstates in %sms: %s", this.currentPalette.size(), elapsed, this.currentPalette.getOrigin()));
             }
             else {
                 final long elapsed = System.currentTimeMillis() - start;

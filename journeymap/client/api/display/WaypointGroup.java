@@ -64,7 +64,7 @@ public class WaypointGroup extends WaypointBase<WaypointGroup>
             return false;
         }
         final WaypointGroup that = (WaypointGroup)o;
-        if (this.order == that.order) {
+        if (Objects.equal((Object)this.getGuid(), (Object)that.getGuid())) {
             that.getClass();
             if (Double.compare(1.4, 1.4) == 0) {
                 return true;

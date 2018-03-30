@@ -9,6 +9,7 @@ import net.minecraftforge.fml.common.network.*;
 import net.minecraftforge.fml.common.eventhandler.*;
 import net.minecraftforge.event.entity.*;
 import net.minecraft.entity.player.*;
+import net.minecraft.client.entity.*;
 import net.minecraftforge.fml.relauncher.*;
 import net.minecraftforge.fml.common.network.simpleimpl.*;
 
@@ -55,8 +56,11 @@ public class WorldInfoHandler
     @SideOnly(Side.CLIENT)
     @SubscribeEvent
     public void on(final EntityJoinWorldEvent event) {
-        if (event.getEntity() instanceof EntityPlayerMP && !this.mc.func_71356_B() && this.mc.field_71439_g != null && !this.mc.field_71439_g.field_70128_L && event.getEntity().func_70005_c_().equals(this.mc.field_71439_g.func_70005_c_())) {
-            requestWorldID();
+        if (event.getEntity() instanceof EntityPlayerMP) {
+            final EntityPlayerSP player = (EntityPlayerSP)event.getEntity();
+            if (!this.mc.func_71356_B() && player != null && !player.field_70128_L && event.getEntity().func_70005_c_().equals(player.func_70005_c_())) {
+                requestWorldID();
+            }
         }
     }
     

@@ -10,7 +10,6 @@ import net.minecraftforge.fml.client.*;
 import java.util.*;
 import journeymap.client.data.*;
 import com.google.common.base.*;
-import org.apache.logging.log4j.*;
 import net.minecraft.client.*;
 import java.util.regex.*;
 import java.text.*;
@@ -19,15 +18,15 @@ public class MapSaver
 {
     private static final DateFormat dateFormat;
     final File worldDir;
-    final MapType mapType;
+    final MapView mapView;
     File saveFile;
     int outputColumns;
     int outputRows;
     ArrayList<File> files;
     
-    public MapSaver(final File worldDir, final MapType mapType) {
+    public MapSaver(final File worldDir, final MapView mapView) {
         this.worldDir = worldDir;
-        this.mapType = mapType;
+        this.mapView = mapView;
         this.prepareFiles();
     }
     
@@ -70,8 +69,8 @@ public class MapSaver
     }
     
     private File getImageDir() {
-        final RegionCoord fakeRc = new RegionCoord(this.worldDir, 0, 0, this.mapType.dimension);
-        return RegionImageHandler.getImageDir(fakeRc, this.mapType);
+        final RegionCoord fakeRc = new RegionCoord(this.worldDir, 0, 0, this.mapView.dimension);
+        return RegionImageHandler.getImageDir(fakeRc, this.mapView);
     }
     
     private void prepareFiles() {
@@ -79,8 +78,8 @@ public class MapSaver
             final Minecraft mc = FMLClientHandler.instance().getClient();
             final String date = MapSaver.dateFormat.format(new Date());
             final String worldName = WorldData.getWorldName(mc, false);
-            final String dimName = WorldData.getSafeDimensionName(new WorldData.WrappedProvider(mc.field_71441_e.field_73011_w));
-            final String fileName = Joiner.on("_").skipNulls().join((Object)date, (Object)worldName, new Object[] { dimName, this.mapType.name, this.mapType.vSlice }) + ".png";
+            final String dimName = WorldData.getSafeDimensionName(new WorldData.WrappedProvider(Journeymap.clientWorld().field_73011_w));
+            final String fileName = Joiner.on("_").skipNulls().join((Object)date, (Object)worldName, new Object[] { dimName, this.mapView.name().toLowerCase(), this.mapView.vSlice }) + ".png";
             final File screenshotsDir = new File(FileHandler.getMinecraftDirectory(), "screenshots");
             if (!screenshotsDir.exists()) {
                 screenshotsDir.mkdir();
@@ -123,8 +122,8 @@ public class MapSaver
             this.files = new ArrayList<File>(this.outputColumns * this.outputRows);
             for (int rz = minZ; rz <= maxZ; ++rz) {
                 for (int rx = minX; rx <= maxX; ++rx) {
-                    final RegionCoord rc = new RegionCoord(this.worldDir, rx, rz, this.mapType.dimension);
-                    final File rfile = RegionImageHandler.getRegionImageFile(rc, this.mapType, true);
+                    final RegionCoord rc = new RegionCoord(this.worldDir, rx, rz, this.mapView.dimension);
+                    final File rfile = RegionImageHandler.getRegionImageFile(rc, this.mapView, true);
                     if (rfile.canRead()) {
                         this.files.add(rfile);
                     }
@@ -135,7 +134,7 @@ public class MapSaver
             }
         }
         catch (Throwable t) {
-            Journeymap.getLogger().log(Level.ERROR, LogFormatter.toString(t));
+            Journeymap.getLogger().error(LogFormatter.toPartialString(t));
         }
     }
     

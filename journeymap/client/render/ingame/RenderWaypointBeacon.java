@@ -6,16 +6,18 @@ import net.minecraft.client.renderer.entity.*;
 import journeymap.client.properties.*;
 import journeymap.common.*;
 import journeymap.client.waypoint.*;
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import journeymap.common.log.*;
+import net.minecraft.client.entity.*;
 import java.util.*;
 import net.minecraft.util.text.*;
 import net.minecraft.client.renderer.*;
 import org.lwjgl.opengl.*;
+import journeymap.client.cartography.color.*;
 import journeymap.client.render.draw.*;
+import journeymap.client.api.model.*;
 import journeymap.client.render.texture.*;
 import net.minecraft.util.math.*;
-import journeymap.client.cartography.color.*;
 import net.minecraftforge.fml.client.*;
 import journeymap.client.*;
 import java.io.*;
@@ -35,15 +37,17 @@ public class RenderWaypointBeacon
         try {
             RenderWaypointBeacon.waypointProperties = Journeymap.getClient().getWaypointProperties();
             final Collection<Waypoint> waypoints = WaypointStore.INSTANCE.getAll();
-            final int playerDim = RenderWaypointBeacon.mc.field_71439_g.field_71093_bK;
+            final EntityPlayerSP player = Journeymap.clientPlayer();
+            if (player == null) {
+                return;
+            }
             for (final Waypoint wp : waypoints) {
-                if (wp.isEnable() && wp.getDimensions().contains(playerDim)) {
-                    try {
-                        doRender(wp);
-                    }
-                    catch (Throwable t) {
-                        Journeymap.getLogger().error("EntityWaypoint failed to render for " + wp + ": " + LogFormatter.toString(t));
-                    }
+                if (!wp.isDisplayed(player.field_71093_bK)) {}
+                try {
+                    doRender(wp);
+                }
+                catch (Throwable t) {
+                    Journeymap.getLogger().error("EntityWaypoint failed to render for " + wp + ": " + LogFormatter.toString(t));
                 }
             }
         }
@@ -59,7 +63,8 @@ public class RenderWaypointBeacon
         RenderHelper.func_74519_b();
         try {
             final Vec3d playerVec = RenderWaypointBeacon.renderManager.field_78734_h.func_174791_d();
-            Vec3d waypointVec = waypoint.getPosition().func_72441_c(0.0, 0.118, 0.0);
+            final int dim = RenderWaypointBeacon.renderManager.field_78734_h.field_71093_bK;
+            Vec3d waypointVec = waypoint.getVec(dim).func_72441_c(0.0, 0.118, 0.0);
             final double actualDistance = playerVec.func_72438_d(waypointVec);
             final int maxDistance = RenderWaypointBeacon.waypointProperties.maxDistance.get();
             if (maxDistance > 0 && actualDistance > maxDistance) {
@@ -88,9 +93,9 @@ public class RenderWaypointBeacon
             final boolean showStaticBeam = RenderWaypointBeacon.waypointProperties.showStaticBeam.get();
             final boolean showRotatingBeam = RenderWaypointBeacon.waypointProperties.showRotatingBeam.get();
             if (showStaticBeam || showRotatingBeam) {
-                renderBeam(shiftX, -RenderWaypointBeacon.renderManager.field_78731_m, shiftZ, waypoint.getColor(), fadeAlpha, showStaticBeam, showRotatingBeam);
+                renderBeam(shiftX, -RenderWaypointBeacon.renderManager.field_78731_m, shiftZ, waypoint.getOrDefaultLabelColor(16777215), fadeAlpha, showStaticBeam, showRotatingBeam);
             }
-            String label = waypoint.getName();
+            String waypointName = waypoint.getName();
             boolean labelHidden = false;
             if (viewDistance > 0.5 && RenderWaypointBeacon.waypointProperties.autoHideLabel.get()) {
                 final int angle = 5;
@@ -110,9 +115,11 @@ public class RenderWaypointBeacon
                 labelHidden = (Math.abs(degrees + angle - (playerDegrees + angle)) > angle);
             }
             double scale = 0.00390625 * ((viewDistance + 4.0) / 3.0);
-            final TextureImpl texture = waypoint.getTexture();
-            final double halfTexHeight = texture.getHeight() / 2;
-            final boolean showName = RenderWaypointBeacon.waypointProperties.showName.get() && label != null && label.length() > 0;
+            final MapImage icon = WaypointStore.getWaypointIcon(waypoint);
+            final MapText label = WaypointStore.getWaypointLabel(waypoint);
+            final TextureImpl texture = TextureCache.getTexture(icon.getImageLocation());
+            final double halfTexHeight = (texture == null) ? 8.0 : (texture.getHeight() / 2);
+            final boolean showName = RenderWaypointBeacon.waypointProperties.showName.get() && waypointName != null && waypointName.length() > 0;
             final boolean showDistance = RenderWaypointBeacon.waypointProperties.showDistance.get();
             if (!labelHidden && (showName || showDistance)) {
                 final StringBuilder sb = new StringBuilder();
@@ -120,7 +127,7 @@ public class RenderWaypointBeacon
                     sb.append(TextFormatting.BOLD);
                 }
                 if (showName) {
-                    sb.append(label);
+                    sb.append(waypointName);
                 }
                 if (showName && showDistance) {
                     sb.append(" ");
@@ -129,7 +136,7 @@ public class RenderWaypointBeacon
                     sb.append(String.format(RenderWaypointBeacon.distanceLabel, actualDistance));
                 }
                 if (sb.length() > 0) {
-                    label = sb.toString();
+                    waypointName = sb.toString();
                     GlStateManager.func_179094_E();
                     GlStateManager.func_179140_f();
                     GL11.glNormal3d(0.0, 0.0, -1.0 * scale);
@@ -142,10 +149,11 @@ public class RenderWaypointBeacon
                     GlStateManager.func_179126_j();
                     final int fontScale = RenderWaypointBeacon.waypointProperties.fontScale.get();
                     final double labelY = 0.0 - halfTexHeight - 8.0;
-                    DrawUtil.drawLabel(label, 1.0, labelY, DrawUtil.HAlign.Center, DrawUtil.VAlign.Above, 0, 0.6f * fadeAlpha, waypoint.getSafeColor(), fadeAlpha, fontScale, false);
+                    final int safeColor = RGB.labelSafe(label.getColor());
+                    DrawUtil.drawLabel(waypointName, 1.0, labelY, DrawUtil.HAlign.Center, DrawUtil.VAlign.Above, label.getBackgroundColor(), 0.6f * fadeAlpha, safeColor, fadeAlpha, fontScale, label.hasFontShadow());
                     GlStateManager.func_179097_i();
                     GlStateManager.func_179132_a(false);
-                    DrawUtil.drawLabel(label, 1.0, labelY, DrawUtil.HAlign.Center, DrawUtil.VAlign.Above, 0, 0.4f * fadeAlpha, waypoint.getSafeColor(), fadeAlpha, fontScale, false);
+                    DrawUtil.drawLabel(waypointName, 1.0, labelY, DrawUtil.HAlign.Center, DrawUtil.VAlign.Above, label.getBackgroundColor(), 0.4f * fadeAlpha, safeColor, fadeAlpha, fontScale, label.hasFontShadow());
                     GlStateManager.func_179121_F();
                 }
             }
@@ -161,10 +169,11 @@ public class RenderWaypointBeacon
                 GlStateManager.func_179114_b(RenderWaypointBeacon.renderManager.field_78732_j, 1.0f, 0.0f, 0.0f);
                 GlStateManager.func_179139_a(-scale, -scale, scale);
                 GL11.glNormal3d(0.0, 0.0, -1.0 * scale);
-                DrawUtil.drawColoredImage(texture, waypoint.getColor(), fadeAlpha, 0 - texture.getWidth() / 2 + 0.5, 0.0 - halfTexHeight + 0.2, 0.0);
+                DrawUtil.drawColoredImage(texture, waypoint.getOrDefaultIconColor(16777215), fadeAlpha, 0 - texture.getWidth() / 2 + 0.5, 0.0 - halfTexHeight + 0.2, 0.0);
                 GlStateManager.func_179121_F();
             }
         }
+        catch (Exception e) {}
         finally {
             GlStateManager.func_179132_a(true);
             GlStateManager.func_179126_j();
@@ -184,7 +193,7 @@ public class RenderWaypointBeacon
         GlStateManager.func_179084_k();
         GlStateManager.func_179126_j();
         GlStateManager.func_179120_a(770, 1, 1, 0);
-        float time = RenderWaypointBeacon.mc.field_71441_e.func_82737_E();
+        float time = Journeymap.clientWorld().func_82737_E();
         if (RenderWaypointBeacon.mc.func_147113_T()) {
             time = Minecraft.func_71386_F() / 50L;
         }

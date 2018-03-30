@@ -1,10 +1,9 @@
 package journeymap.client.ui.component;
 
-import net.minecraft.client.gui.*;
 import java.awt.geom.*;
 import java.util.function.*;
 import java.awt.*;
-import net.minecraftforge.fml.client.*;
+import net.minecraft.client.gui.*;
 import net.minecraft.client.*;
 import net.minecraft.client.audio.*;
 import net.minecraft.client.renderer.*;
@@ -33,7 +32,6 @@ public class Button extends GuiButton implements ScrollPane.Scrollable
     protected boolean defaultStyle;
     protected int WIDTH_PAD;
     protected String[] tooltip;
-    protected FontRenderer fontRenderer;
     protected Rectangle2D.Double bounds;
     protected ArrayList<Function<Button, Boolean>> clickListeners;
     
@@ -53,14 +51,13 @@ public class Button extends GuiButton implements ScrollPane.Scrollable
         this.drawLabelShadow = true;
         this.defaultStyle = true;
         this.WIDTH_PAD = 12;
-        this.fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
         this.clickListeners = new ArrayList<Function<Button, Boolean>>(0);
         this.finishInit();
     }
     
     public void resetLabelColors() {
-        this.labelColor = new Color(14737632).getRGB();
-        this.hoverLabelColor = new Color(16777120).getRGB();
+        this.labelColor = 14737632;
+        this.hoverLabelColor = 16777120;
         this.disabledLabelColor = Color.lightGray.getRGB();
     }
     
@@ -217,12 +214,11 @@ public class Button extends GuiButton implements ScrollPane.Scrollable
         final ArrayList<String> list = new ArrayList<String>();
         if (this.tooltip != null) {
             for (final String line : this.tooltip) {
-                list.addAll(this.fontRenderer.func_78271_c(line, 200));
+                list.addAll(JmUI.fontRenderer().func_78271_c(line, 200));
             }
-            return list;
         }
         if (!this.isEnabled() && this.showDisabledHoverText) {
-            list.add(TextFormatting.ITALIC + Constants.getString("jm.common.disabled_feature"));
+            list.add(TextFormatting.RED + Constants.getString("jm.common.disabled_feature"));
         }
         return list;
     }

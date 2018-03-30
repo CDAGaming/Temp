@@ -1,10 +1,9 @@
 package journeymap.client.ui.option;
 
 import net.minecraft.client.*;
-import net.minecraft.client.gui.*;
-import journeymap.client.ui.component.*;
 import net.minecraftforge.fml.client.*;
 import java.awt.*;
+import journeymap.client.ui.component.*;
 import journeymap.client.render.draw.*;
 import com.google.common.base.*;
 import java.util.*;
@@ -13,7 +12,6 @@ public class ButtonListSlot implements ScrollListPane.ISlot, Comparable<ButtonLi
 {
     static int hgap;
     Minecraft mc;
-    FontRenderer fontRenderer;
     ButtonList buttons;
     HashMap<Button, SlotMetadata> buttonOptionMetadata;
     CategorySlot parent;
@@ -24,7 +22,6 @@ public class ButtonListSlot implements ScrollListPane.ISlot, Comparable<ButtonLi
     
     public ButtonListSlot(final CategorySlot parent) {
         this.mc = FMLClientHandler.instance().getClient();
-        this.fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
         this.buttons = new ButtonList();
         this.buttonOptionMetadata = new HashMap<Button, SlotMetadata>();
         this.lastPressed = null;
@@ -79,7 +76,7 @@ public class ButtonListSlot implements ScrollListPane.ISlot, Comparable<ButtonLi
         if (this.buttons.size() > 0) {
             this.buttons.setHeights(slotHeight);
             if (this.buttonOptionMetadata.get(((ArrayList<Object>)this.buttons).get(0)).isToolbar()) {
-                this.buttons.fitWidths(this.fontRenderer);
+                this.buttons.fitWidths(JmUI.fontRenderer());
                 this.buttons.layoutHorizontal(x + listWidth - ButtonListSlot.hgap, y, false, ButtonListSlot.hgap);
                 DrawUtil.drawGradientRect(x, y, listWidth, slotHeight, this.colorToolbarBgStart, 0.15f, this.colorToolbarBgEnd, 0.6f);
             }
@@ -88,7 +85,7 @@ public class ButtonListSlot implements ScrollListPane.ISlot, Comparable<ButtonLi
                 this.buttons.layoutHorizontal(x, y, true, ButtonListSlot.hgap);
             }
             for (final Button button : this.buttons) {
-                button.func_191745_a(this.mc, mouseX, mouseY, 0.0f);
+                button.func_191745_a(this.mc, mouseX, mouseY, partialTicks);
                 if (tooltipMetadata == null && button.mouseOver(mouseX, mouseY)) {
                     tooltipMetadata = this.buttonOptionMetadata.get(button);
                 }
@@ -162,7 +159,7 @@ public class ButtonListSlot implements ScrollListPane.ISlot, Comparable<ButtonLi
     
     @Override
     public int getColumnWidth() {
-        this.buttons.equalizeWidths(this.fontRenderer);
+        this.buttons.equalizeWidths(JmUI.fontRenderer());
         return this.buttons.get(0).getWidth();
     }
     

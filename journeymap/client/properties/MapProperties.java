@@ -1,6 +1,5 @@
 package journeymap.client.properties;
 
-import journeymap.client.model.*;
 import journeymap.common.properties.config.*;
 import journeymap.common.properties.*;
 
@@ -11,7 +10,6 @@ public abstract class MapProperties extends ClientPropertiesBase implements Comp
     public final BooleanField showGrid;
     public final BooleanField showCaves;
     public final BooleanField showEntityNames;
-    public final EnumField<MapType.Name> preferredMapType;
     public final IntegerField zoomLevel;
     
     public MapProperties() {
@@ -20,7 +18,6 @@ public abstract class MapProperties extends ClientPropertiesBase implements Comp
         this.showGrid = new BooleanField(Category.Inherit, "jm.common.show_grid", true);
         this.showCaves = new BooleanField(Category.Inherit, "jm.common.show_caves", true);
         this.showEntityNames = new BooleanField(Category.Inherit, "jm.common.show_entity_names", true);
-        this.preferredMapType = new EnumField<MapType.Name>(Category.Hidden, "", MapType.Name.day);
         this.zoomLevel = new IntegerField(Category.Hidden, "", 0, 8, 0);
     }
     

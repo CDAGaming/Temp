@@ -1,6 +1,5 @@
 package journeymap.client.world;
 
-import mcp.*;
 import net.minecraft.tileentity.*;
 import net.minecraft.block.state.*;
 import journeymap.client.model.*;
@@ -10,11 +9,12 @@ import net.minecraftforge.fml.client.*;
 import net.minecraft.server.*;
 import javax.annotation.*;
 import net.minecraft.util.*;
+import journeymap.common.*;
 import net.minecraft.world.*;
 import journeymap.client.data.*;
 import net.minecraft.util.math.*;
 
-@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
 public enum JmBlockAccess implements IBlockAccess
 {
     INSTANCE;
@@ -69,7 +69,7 @@ public enum JmBlockAccess implements IBlockAccess
     }
     
     public World getWorld() {
-        return (World)FMLClientHandler.instance().getClient().field_71441_e;
+        return Journeymap.clientWorld();
     }
     
     public WorldType func_175624_G() {

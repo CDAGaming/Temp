@@ -14,28 +14,33 @@ public class RegionImageSet extends ImageSet
         this.key = key;
     }
     
-    public ImageHolder getHolder(final MapType mapType) {
+    public ImageHolder getHolder(final MapView mapView) {
         synchronized (this.imageHolders) {
-            ImageHolder imageHolder = this.imageHolders.get(mapType);
+            ImageHolder imageHolder = this.imageHolders.get(mapView);
             if (imageHolder == null) {
-                final File imageFile = RegionImageHandler.getRegionImageFile(this.getRegionCoord(), mapType, false);
-                imageHolder = this.addHolder(mapType, imageFile);
+                final File imageFile = RegionImageHandler.getRegionImageFile(this.getRegionCoord(), mapView, false);
+                imageHolder = this.addHolder(mapView, imageFile);
             }
             return imageHolder;
         }
     }
     
-    public ComparableBufferedImage getChunkImage(final ChunkMD chunkMd, final MapType mapType) {
+    public ComparableBufferedImage getChunkImage(final ChunkMD chunkMd, final MapView mapView) {
         final RegionCoord regionCoord = this.getRegionCoord();
-        final BufferedImage regionImage = this.getHolder(mapType).getImage();
-        final BufferedImage sub = regionImage.getSubimage(regionCoord.getXOffset(chunkMd.getCoord().field_77276_a), regionCoord.getZOffset(chunkMd.getCoord().field_77275_b), 16, 16);
-        final ComparableBufferedImage chunk = new ComparableBufferedImage(16, 16, regionImage.getType());
-        chunk.setData(sub.getData());
-        return chunk;
+        final ImageHolder imageHolder = this.getHolder(mapView);
+        if (imageHolder.hasTexture()) {
+            final BufferedImage regionImage = imageHolder.getImage();
+            final BufferedImage sub = regionImage.getSubimage(regionCoord.getXOffset(chunkMd.getCoord().field_77276_a), regionCoord.getZOffset(chunkMd.getCoord().field_77275_b), 16, 16);
+            final ComparableBufferedImage chunk = new ComparableBufferedImage(16, 16, regionImage.getType());
+            chunk.setData(sub.getData());
+            return chunk;
+        }
+        final ComparableBufferedImage chunk2 = new ComparableBufferedImage(16, 16, 2);
+        return chunk2;
     }
     
-    public void setChunkImage(final ChunkMD chunkMd, final MapType mapType, final ComparableBufferedImage chunkImage) {
-        final ImageHolder holder = this.getHolder(mapType);
+    public void setChunkImage(final ChunkMD chunkMd, final MapView mapView, final ComparableBufferedImage chunkImage) {
+        final ImageHolder holder = this.getHolder(mapView);
         final boolean wasBlank = holder.blank;
         if (chunkImage.isChanged() || wasBlank) {
             final RegionCoord regionCoord = this.getRegionCoord();
@@ -46,7 +51,7 @@ public class RegionImageSet extends ImageSet
             holder.finishPartialImageUpdates();
             RegionImageCache.INSTANCE.getRegionImageSet(this.getRegionCoord());
         }
-        chunkMd.setRendered(mapType);
+        chunkMd.setRendered(mapView);
     }
     
     public boolean hasChunkUpdates() {

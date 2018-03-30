@@ -2,7 +2,6 @@ package modinfo.mp.v1;
 
 import java.net.*;
 import modinfo.*;
-import org.apache.logging.log4j.*;
 import java.util.*;
 import java.io.*;
 
@@ -21,7 +20,7 @@ public class Payload
             return URLEncoder.encode(value, "UTF-8");
         }
         catch (UnsupportedEncodingException e) {
-            ModInfo.LOGGER.log(Level.ERROR, "Can't encode: " + value);
+            ModInfo.LOGGER.error("Can't encode: " + value);
             return value;
         }
     }

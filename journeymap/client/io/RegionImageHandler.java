@@ -14,14 +14,14 @@ import java.awt.*;
 
 public class RegionImageHandler
 {
-    public static File getImageDir(final RegionCoord rCoord, final MapType mapType) {
+    public static File getImageDir(final RegionCoord rCoord, final MapView mapView) {
         final File dimDir = rCoord.dimDir.toFile();
         File subDir = null;
-        if (mapType.isUnderground()) {
-            subDir = new File(dimDir, Integer.toString(mapType.vSlice));
+        if (mapView.isUnderground()) {
+            subDir = new File(dimDir, Integer.toString(mapView.vSlice));
         }
         else {
-            subDir = new File(dimDir, mapType.name());
+            subDir = new File(dimDir, mapView.name());
         }
         if (!subDir.exists()) {
             subDir.mkdirs();
@@ -38,10 +38,10 @@ public class RegionImageHandler
         return dimDir;
     }
     
-    public static File getRegionImageFile(final RegionCoord rCoord, final MapType mapType, final boolean allowLegacy) {
+    public static File getRegionImageFile(final RegionCoord rCoord, final MapView mapView, final boolean allowLegacy) {
         final StringBuffer sb = new StringBuffer();
         sb.append(rCoord.regionX).append(",").append(rCoord.regionZ).append(".png");
-        final File regionFile = new File(getImageDir(rCoord, mapType), sb.toString());
+        final File regionFile = new File(getImageDir(rCoord, mapView), sb.toString());
         return regionFile;
     }
     
@@ -80,7 +80,7 @@ public class RegionImageHandler
         }
     }
     
-    public static synchronized BufferedImage getMergedChunks(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapType mapType, final Boolean useCache, BufferedImage image, final Integer imageWidth, final Integer imageHeight, final boolean allowNullImage, final boolean showGrid) {
+    public static synchronized BufferedImage getMergedChunks(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapView mapView, final Boolean useCache, BufferedImage image, final Integer imageWidth, final Integer imageHeight, final boolean allowNullImage, final boolean showGrid) {
         int scale = 1;
         scale = Math.max(scale, 1);
         final int initialWidth = Math.min(512, (endCoord.field_77276_a - startCoord.field_77276_a + 1) * 16 / scale);
@@ -98,8 +98,8 @@ public class RegionImageHandler
         boolean imageDrawn = false;
         for (int rx3 = rx1; rx3 <= rx2; ++rx3) {
             for (int rz3 = rz1; rz3 <= rz2; ++rz3) {
-                rc = new RegionCoord(worldDir, rx3, rz3, mapType.dimension);
-                regionImage = cache.getRegionImageSet(rc).getImage(mapType);
+                rc = new RegionCoord(worldDir, rx3, rz3, mapView.dimension);
+                regionImage = cache.getRegionImageSet(rc).getImage(mapView);
                 if (regionImage != null) {
                     final int rminCx = Math.max(rc.getMinChunkX(), startCoord.field_77276_a);
                     final int rminCz = Math.max(rc.getMinChunkZ(), startCoord.field_77275_b);
@@ -123,7 +123,7 @@ public class RegionImageHandler
             }
         }
         if (imageDrawn && showGrid) {
-            if (mapType.isDay()) {
+            if (mapView.isDay()) {
                 g2D.setColor(Color.black);
                 g2D.setComposite(AlphaComposite.getInstance(10, 0.25f));
             }
@@ -152,7 +152,7 @@ public class RegionImageHandler
         return image;
     }
     
-    public static synchronized BufferedImage getMergedChunks(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapType mapType, int scale, final boolean showGrid) {
+    public static synchronized BufferedImage getMergedChunks(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapView mapView, int scale, final boolean showGrid) {
         scale = Math.max(scale, 1);
         final int initialWidth = Math.min(512, (endCoord.field_77276_a - startCoord.field_77276_a + 1) * 16 / scale);
         final int initialHeight = Math.min(512, (endCoord.field_77275_b - startCoord.field_77275_b + 1) * 16 / scale);
@@ -165,8 +165,8 @@ public class RegionImageHandler
         final int rz2 = RegionCoord.getRegionPos(endCoord.field_77275_b);
         for (int rx3 = rx1; rx3 <= rx2; ++rx3) {
             for (int rz3 = rz1; rz3 <= rz2; ++rz3) {
-                final RegionCoord rc = new RegionCoord(worldDir, rx3, rz3, mapType.dimension);
-                BufferedImage regionImage = RegionImageCache.INSTANCE.getRegionImageSet(rc).getImage(mapType);
+                final RegionCoord rc = new RegionCoord(worldDir, rx3, rz3, mapView.dimension);
+                BufferedImage regionImage = RegionImageCache.INSTANCE.getRegionImageSet(rc).getImage(mapView);
                 if (regionImage == null) {
                     if (blank == null) {
                         blank = createBlankImage(512, 512);
@@ -189,7 +189,7 @@ public class RegionImageHandler
             }
         }
         if (showGrid) {
-            final GridSpec gridSpec = Journeymap.getClient().getCoreProperties().gridSpecs.getSpec(mapType);
+            final GridSpec gridSpec = Journeymap.getClient().getCoreProperties().gridSpecs.getSpec(mapView);
             if (gridSpec != null) {
                 final BufferedImage gridImage = gridSpec.getTexture().getImage();
                 g2D.setXORMode(new Color(gridSpec.getColor()));
@@ -210,16 +210,18 @@ public class RegionImageHandler
         return image;
     }
     
-    public static synchronized List<TileDrawStep> getTileDrawSteps(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapType mapType, final Integer zoom, final boolean highQuality) {
-        final boolean isUnderground = mapType.isUnderground();
+    public static synchronized List<TileDrawStep> getTileDrawSteps(final File worldDir, final ChunkPos startCoord, final ChunkPos endCoord, final MapView mapView, final Integer zoom, final boolean highQuality) {
+        final List<TileDrawStep> drawSteps = new ArrayList<TileDrawStep>();
+        if (mapView.isNone()) {
+            return drawSteps;
+        }
         final int rx1 = RegionCoord.getRegionPos(startCoord.field_77276_a);
         final int rx2 = RegionCoord.getRegionPos(endCoord.field_77276_a);
         final int rz1 = RegionCoord.getRegionPos(startCoord.field_77275_b);
         final int rz2 = RegionCoord.getRegionPos(endCoord.field_77275_b);
-        final List<TileDrawStep> drawSteps = new ArrayList<TileDrawStep>();
         for (int rx3 = rx1; rx3 <= rx2; ++rx3) {
             for (int rz3 = rz1; rz3 <= rz2; ++rz3) {
-                final RegionCoord rc = new RegionCoord(worldDir, rx3, rz3, mapType.dimension);
+                final RegionCoord rc = new RegionCoord(worldDir, rx3, rz3, mapView.dimension);
                 final int rminCx = Math.max(rc.getMinChunkX(), startCoord.field_77276_a);
                 final int rminCz = Math.max(rc.getMinChunkZ(), startCoord.field_77275_b);
                 final int rmaxCx = Math.min(rc.getMaxChunkX(), endCoord.field_77276_a);
@@ -230,7 +232,7 @@ public class RegionImageHandler
                 final int sy1 = rminCz * 16 - yoffset;
                 final int sx2 = sx1 + (rmaxCx - rminCx + 1) * 16;
                 final int sy2 = sy1 + (rmaxCz - rminCz + 1) * 16;
-                drawSteps.add(TileDrawStepCache.getOrCreate(mapType, rc, zoom, highQuality, sx1, sy1, sx2, sy2));
+                drawSteps.add(TileDrawStepCache.getOrCreate(mapView, rc, zoom, highQuality, sx1, sy1, sx2, sy2));
             }
         }
         return drawSteps;

@@ -1,6 +1,7 @@
 package journeymap.client.waypoint;
 
 import javax.annotation.*;
+import com.google.gson.*;
 import journeymap.client.io.*;
 import java.io.*;
 import java.nio.charset.*;
@@ -8,19 +9,23 @@ import com.google.common.io.*;
 import journeymap.common.*;
 import journeymap.common.log.*;
 import java.util.*;
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import com.google.common.cache.*;
+import journeymap.client.*;
 
 @ParametersAreNonnullByDefault
 public enum WaypointGroupStore
 {
     INSTANCE;
     
+    public static final WaypointGroup DEFAULT;
+    public final Gson GSON;
     public static final String KEY_PATTERN = "%s:%s";
     public static final String FILENAME = "waypoint_groups.json";
     public final LoadingCache<String, WaypointGroup> cache;
     
     private WaypointGroupStore() {
+        this.GSON = new GsonBuilder().setVersion(1.4).create();
         this.cache = this.createCache();
     }
     
@@ -35,12 +40,12 @@ public enum WaypointGroupStore
     
     public boolean exists(final WaypointGroup waypointGroup) {
         this.ensureLoaded();
-        return this.cache.getIfPresent((Object)waypointGroup.getKey()) != null;
+        return this.cache.getIfPresent((Object)waypointGroup.getGuid()) != null;
     }
     
     public void put(final WaypointGroup waypointGroup) {
         this.ensureLoaded();
-        this.cache.put((Object)waypointGroup.getKey(), (Object)waypointGroup);
+        this.cache.put((Object)waypointGroup.getGuid(), (Object)waypointGroup);
         this.save(true);
     }
     
@@ -54,7 +59,7 @@ public enum WaypointGroupStore
     
     public void remove(final WaypointGroup waypointGroup) {
         this.ensureLoaded();
-        this.cache.invalidate((Object)waypointGroup.getKey());
+        this.cache.invalidate((Object)waypointGroup.getGuid());
         waypointGroup.setDirty(false);
         this.save();
     }
@@ -71,7 +76,7 @@ public enum WaypointGroupStore
             HashMap<String, WaypointGroup> map = new HashMap<String, WaypointGroup>(0);
             try {
                 final String groupsString = Files.toString(groupFile, Charset.forName("UTF-8"));
-                map = (HashMap<String, WaypointGroup>)WaypointGroup.GSON.fromJson(groupsString, (Class)map.getClass());
+                map = (HashMap<String, WaypointGroup>)this.GSON.fromJson(groupsString, (Class)map.getClass());
             }
             catch (Exception e) {
                 Journeymap.getLogger().error(String.format("Error reading WaypointGroups file %s: %s", groupFile, LogFormatter.toPartialString(e)));
@@ -86,11 +91,11 @@ public enum WaypointGroupStore
                 this.cache.invalidateAll();
                 this.cache.putAll((Map)map);
                 Journeymap.getLogger().info(String.format("Loaded WaypointGroups file %s", groupFile));
-                this.cache.put((Object)WaypointGroup.DEFAULT.getKey(), (Object)WaypointGroup.DEFAULT);
+                this.cache.put((Object)WaypointGroupStore.DEFAULT.getGuid(), (Object)WaypointGroupStore.DEFAULT);
                 return;
             }
         }
-        this.cache.put((Object)WaypointGroup.DEFAULT.getKey(), (Object)WaypointGroup.DEFAULT);
+        this.cache.put((Object)WaypointGroupStore.DEFAULT.getGuid(), (Object)WaypointGroupStore.DEFAULT);
         this.save(true);
     }
     
@@ -112,7 +117,7 @@ public enum WaypointGroupStore
             TreeMap<String, WaypointGroup> map = null;
             try {
                 map = new TreeMap<String, WaypointGroup>(new Comparator<String>() {
-                    final String defaultKey = WaypointGroup.DEFAULT.getKey();
+                    final String defaultKey = WaypointGroupStore.DEFAULT.getGuid();
                     
                     @Override
                     public int compare(final String o1, final String o2) {
@@ -139,7 +144,7 @@ public enum WaypointGroupStore
                 }
                 groupFile = new File(waypointDir, "waypoint_groups.json");
                 final boolean isNew = groupFile.exists();
-                Files.write((CharSequence)WaypointGroup.GSON.toJson((Object)map), groupFile, Charset.forName("UTF-8"));
+                Files.write((CharSequence)this.GSON.toJson((Object)map), groupFile, Charset.forName("UTF-8"));
                 for (final WaypointGroup group2 : this.cache.asMap().values()) {
                     group2.setDirty(false);
                 }
@@ -158,10 +163,8 @@ public enum WaypointGroupStore
             @ParametersAreNonnullByDefault
             public void onRemoval(final RemovalNotification<String, WaypointGroup> notification) {
                 for (final Waypoint orphan : WaypointStore.INSTANCE.getAll((WaypointGroup)notification.getValue())) {
-                    orphan.setGroupName(WaypointGroup.DEFAULT.getName());
-                    final Waypoint waypoint = orphan;
-                    final WaypointGroup default1 = WaypointGroup.DEFAULT;
-                    waypoint.setGroup(WaypointGroup.DEFAULT);
+                    orphan.setName(WaypointGroupStore.DEFAULT.getName());
+                    orphan.setGroup(WaypointGroupStore.DEFAULT);
                 }
                 WaypointGroupStore.this.save();
             }
@@ -184,5 +187,9 @@ public enum WaypointGroupStore
             }
         });
         return cache;
+    }
+    
+    static {
+        DEFAULT = new WaypointGroup("journeymap", Constants.getString("jm.config.category.waypoint"));
     }
 }

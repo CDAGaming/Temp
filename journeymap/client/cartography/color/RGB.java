@@ -105,6 +105,11 @@ public final class RGB
         return toInteger(clampFloats(floats(rgb), factor));
     }
     
+    public static int labelSafe(final int rgb) {
+        final int[] c = ints(rgb);
+        return (c[0] + c[1] + c[2] > 100) ? rgb : 2236962;
+    }
+    
     public static int greyScale(final int rgb) {
         final int[] ints = ints(rgb);
         final int avg = clampInt((ints[0] + ints[1] + ints[2]) / 3);

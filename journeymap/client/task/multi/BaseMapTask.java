@@ -8,9 +8,8 @@ import net.minecraft.client.*;
 import journeymap.client.*;
 import java.io.*;
 import journeymap.client.log.*;
-import net.minecraftforge.fml.client.*;
-import journeymap.client.data.*;
 import journeymap.common.*;
+import journeymap.client.data.*;
 import journeymap.common.log.*;
 import java.util.*;
 import journeymap.client.model.*;
@@ -24,13 +23,13 @@ public abstract class BaseMapTask implements ITask
     final boolean flushCacheWhenDone;
     final ChunkRenderController renderController;
     final int elapsedLimit;
-    final MapType mapType;
+    final MapView mapView;
     final boolean asyncFileWrites;
     
-    public BaseMapTask(final ChunkRenderController renderController, final World world, final MapType mapType, final Collection<ChunkPos> chunkCoords, final boolean flushCacheWhenDone, final boolean asyncFileWrites, final int elapsedLimit) {
+    public BaseMapTask(final ChunkRenderController renderController, final World world, final MapView mapView, final Collection<ChunkPos> chunkCoords, final boolean flushCacheWhenDone, final boolean asyncFileWrites, final int elapsedLimit) {
         this.renderController = renderController;
         this.world = world;
-        this.mapType = mapType;
+        this.mapView = mapView;
         this.chunkCoords = chunkCoords;
         this.asyncFileWrites = asyncFileWrites;
         this.flushCacheWhenDone = flushCacheWhenDone;
@@ -42,7 +41,7 @@ public abstract class BaseMapTask implements ITask
     
     @Override
     public void performTask(final Minecraft mc, final JourneymapClient jm, final File jmWorldDir, final boolean threadLogging) throws InterruptedException {
-        if (!this.mapType.isAllowed()) {
+        if (!this.mapView.isAllowed()) {
             this.complete(0, true, false);
             return;
         }
@@ -50,13 +49,13 @@ public abstract class BaseMapTask implements ITask
         this.initTask(mc, jm, jmWorldDir, threadLogging);
         int count = 0;
         try {
-            if (mc.field_71441_e == null) {
+            if (this.world == null) {
                 this.complete(count, true, false);
                 return;
             }
             final Iterator<ChunkPos> chunkIter = this.chunkCoords.iterator();
-            final int currentDimension = FMLClientHandler.instance().getClient().field_71439_g.field_70170_p.field_73011_w.getDimension();
-            if (currentDimension != this.mapType.dimension) {
+            final int currentDimension = this.world.field_73011_w.getDimension();
+            if (currentDimension != this.mapView.dimension) {
                 if (threadLogging) {
                     BaseMapTask.logger.debug("Dimension changed, map task obsolete.");
                 }
@@ -64,7 +63,7 @@ public abstract class BaseMapTask implements ITask
                 this.complete(count, true, false);
                 return;
             }
-            final ChunkPos playerChunk = new ChunkPos(FMLClientHandler.instance().getClient().field_71439_g.func_180425_c());
+            final ChunkPos playerChunk = new ChunkPos(Journeymap.clientPlayer().func_180425_c());
             while (chunkIter.hasNext()) {
                 if (!jm.isMapping()) {
                     if (threadLogging) {
@@ -83,8 +82,8 @@ public abstract class BaseMapTask implements ITask
                     continue;
                 }
                 try {
-                    final RegionCoord rCoord = RegionCoord.fromChunkPos(jmWorldDir, this.mapType, chunkMd.getCoord().field_77276_a, chunkMd.getCoord().field_77275_b);
-                    final boolean rendered = this.renderController.renderChunk(rCoord, this.mapType, chunkMd);
+                    final RegionCoord rCoord = RegionCoord.fromChunkPos(jmWorldDir, this.mapView, chunkMd.getCoord().field_77276_a, chunkMd.getCoord().field_77275_b);
+                    final boolean rendered = this.renderController.renderChunk(rCoord, this.mapView, chunkMd);
                     if (!rendered) {
                         continue;
                     }
@@ -133,7 +132,7 @@ public abstract class BaseMapTask implements ITask
     
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "{world=" + this.world + ", mapType=" + this.mapType + ", chunkCoords=" + this.chunkCoords + ", flushCacheWhenDone=" + this.flushCacheWhenDone + '}';
+        return this.getClass().getSimpleName() + "{world=" + this.world + ", mapView=" + this.mapView + ", chunkCoords=" + this.chunkCoords + ", flushCacheWhenDone=" + this.flushCacheWhenDone + '}';
     }
     
     static {

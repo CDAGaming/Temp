@@ -1,5 +1,7 @@
 package journeymap.client.model;
 
+import journeymap.common.api.feature.*;
+
 public class GridSpecs
 {
     public static final GridSpec DEFAULT_DAY;
@@ -19,15 +21,18 @@ public class GridSpecs
         this.underground = underground;
     }
     
-    public GridSpec getSpec(final MapType mapType) {
-        switch (mapType.name) {
-            case day: {
+    public GridSpec getSpec(final MapView mapView) {
+        if (mapView.isNone()) {
+            return this.day;
+        }
+        switch (mapView.mapType) {
+            case Day: {
                 return this.day;
             }
-            case night: {
+            case Night: {
                 return this.night;
             }
-            case underground: {
+            case Underground: {
                 return this.underground;
             }
             default: {
@@ -36,15 +41,15 @@ public class GridSpecs
         }
     }
     
-    public void setSpec(final MapType mapType, final GridSpec newSpec) {
-        switch (mapType.name) {
-            case day: {
+    public void setSpec(final MapView mapView, final GridSpec newSpec) {
+        switch (mapView.mapType) {
+            case Day: {
                 this.day = newSpec.clone();
             }
-            case night: {
+            case Night: {
                 this.night = newSpec.clone();
             }
-            case underground: {
+            case Underground: {
                 this.underground = newSpec.clone();
             }
             default: {

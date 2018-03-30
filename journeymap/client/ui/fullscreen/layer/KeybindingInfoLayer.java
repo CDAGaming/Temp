@@ -1,11 +1,10 @@
 package journeymap.client.ui.fullscreen.layer;
 
-import net.minecraft.client.gui.*;
 import journeymap.client.properties.*;
 import journeymap.client.ui.fullscreen.*;
 import net.minecraft.client.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.common.*;
+import net.minecraftforge.fml.client.*;
 import journeymap.client.render.map.*;
 import net.minecraft.util.math.*;
 import net.minecraft.util.*;
@@ -15,14 +14,15 @@ import journeymap.client.io.*;
 import journeymap.client.render.draw.*;
 import net.minecraft.client.renderer.*;
 import java.util.*;
+import journeymap.client.ui.component.*;
 import journeymap.client.forge.event.*;
 import net.minecraft.client.settings.*;
 import journeymap.client.*;
+import net.minecraft.client.gui.*;
 
 public class KeybindingInfoLayer implements LayerDelegate.Layer
 {
     private final List<DrawStep> drawStepList;
-    private FontRenderer fontRenderer;
     private final KeybindingInfoStep keybindingInfoStep;
     private FullMapProperties fullMapProperties;
     private final Fullscreen fullscreen;
@@ -30,7 +30,6 @@ public class KeybindingInfoLayer implements LayerDelegate.Layer
     
     public KeybindingInfoLayer(final Fullscreen fullscreen) {
         this.drawStepList = new ArrayList<DrawStep>(1);
-        this.fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
         this.fullMapProperties = Journeymap.getClient().getFullMapProperties();
         this.mc = FMLClientHandler.instance().getClient();
         this.fullscreen = fullscreen;
@@ -148,7 +147,7 @@ public class KeybindingInfoLayer implements LayerDelegate.Layer
                 this.screenHeight = gridRenderer.getHeight();
                 this.fontScale = fontScale;
                 this.pad = (int)(10.0 * fontScale);
-                this.lineHeight = (int)(3.0 + fontScale * KeybindingInfoLayer.this.fontRenderer.field_78288_b);
+                this.lineHeight = (int)(3.0 + fontScale * JmUI.fontRenderer().field_78288_b);
                 this.initLines(fontScale);
                 final int panelWidth = this.keyNameWidth + this.keyDescWidth + 4 * this.pad;
                 final int panelHeight = this.lines.size() * this.lineHeight + this.pad;
@@ -181,8 +180,9 @@ public class KeybindingInfoLayer implements LayerDelegate.Layer
             final String keyDesc = Constants.getString(keyBinding.func_151464_g());
             final Tuple<String, String> line = (Tuple<String, String>)new Tuple((Object)keyName, (Object)keyDesc);
             this.lines.add(line);
-            this.keyNameWidth = (int)Math.max(this.keyNameWidth, fontScale * KeybindingInfoLayer.this.fontRenderer.func_78256_a(keyName));
-            this.keyDescWidth = (int)Math.max(this.keyDescWidth, fontScale * KeybindingInfoLayer.this.fontRenderer.func_78256_a(keyDesc));
+            final FontRenderer fr = JmUI.fontRenderer();
+            this.keyNameWidth = (int)Math.max(this.keyNameWidth, fontScale * fr.func_78256_a(keyName));
+            this.keyDescWidth = (int)Math.max(this.keyDescWidth, fontScale * fr.func_78256_a(keyDesc));
         }
     }
 }

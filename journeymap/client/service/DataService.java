@@ -1,9 +1,9 @@
 package journeymap.client.service;
 
 import journeymap.common.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.client.data.*;
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
+import journeymap.client.waypoint.*;
 import java.net.*;
 import journeymap.common.log.*;
 import se.rupy.http.*;
@@ -30,7 +30,7 @@ public class DataService extends BaseService
                 if (!Journeymap.getClient().isMapping()) {
                     this.throwEventException(503, "JourneyMap not mapping", event, false);
                 }
-                else if (FMLClientHandler.instance().getClient().field_71441_e == null) {
+                else if (Journeymap.clientWorld() == null) {
                     this.throwEventException(503, "World not connected", event, false);
                 }
             }
@@ -50,11 +50,11 @@ public class DataService extends BaseService
             if (dpClass == AllData.class) {
                 data = DataCache.INSTANCE.getAll(since);
             }
-            else if (dpClass == AnimalsData.class) {
-                data = DataCache.INSTANCE.getAnimals(false);
+            else if (dpClass == PassiveMobsData.class) {
+                data = DataCache.INSTANCE.getPassiveMobs(false);
             }
-            else if (dpClass == MobsData.class) {
-                data = DataCache.INSTANCE.getMobs(false);
+            else if (dpClass == HostileMobsData.class) {
+                data = DataCache.INSTANCE.getHostileMobs(false);
             }
             else if (dpClass == ImagesData.class) {
                 data = new ImagesData(since);
@@ -71,13 +71,16 @@ public class DataService extends BaseService
             else if (dpClass == WorldData.class) {
                 data = DataCache.INSTANCE.getWorld(false);
             }
-            else if (dpClass == VillagersData.class) {
-                data = DataCache.INSTANCE.getVillagers(false);
+            else if (dpClass == NpcsData.class) {
+                data = DataCache.INSTANCE.getNpcs(false);
+            }
+            else if (dpClass == NpcsData.class) {
+                data = DataCache.INSTANCE.getNpcs(false);
             }
             else if (dpClass == WaypointsData.class) {
-                final Collection<Waypoint> waypoints = DataCache.INSTANCE.getWaypoints(false);
                 final Map<String, Waypoint> wpMap = new HashMap<String, Waypoint>();
-                for (final Waypoint waypoint : waypoints) {
+                final int playerDim = Journeymap.clientPlayer().field_71093_bK;
+                for (final Waypoint waypoint : WaypointStore.INSTANCE.getAll(playerDim)) {
                     wpMap.put(waypoint.getId(), waypoint);
                 }
                 data = wpMap;

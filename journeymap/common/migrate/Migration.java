@@ -2,6 +2,7 @@ package journeymap.common.migrate;
 
 import journeymap.common.*;
 import com.google.common.reflect.*;
+import java.lang.reflect.*;
 import journeymap.common.log.*;
 import java.util.*;
 
@@ -20,7 +21,7 @@ public class Migration
             final Set<ClassPath.ClassInfo> classInfoSet = (Set<ClassPath.ClassInfo>)ClassPath.from(Journeymap.class.getClassLoader()).getTopLevelClassesRecursive(this.targetPackage);
             for (final ClassPath.ClassInfo classInfo : classInfoSet) {
                 final Class<?> clazz = (Class<?>)classInfo.load();
-                if (MigrationTask.class.isAssignableFrom(clazz)) {
+                if (MigrationTask.class.isAssignableFrom(clazz) && !Modifier.isAbstract(clazz.getModifiers())) {
                     try {
                         final MigrationTask task = (MigrationTask)clazz.newInstance();
                         if (!task.isActive(Journeymap.JM_VERSION)) {
@@ -29,14 +30,14 @@ public class Migration
                         tasks.add(task);
                     }
                     catch (Throwable t) {
-                        Journeymap.getLogger().error("Couldn't instantiate MigrationTask " + clazz, (Object)LogFormatter.toPartialString(t));
+                        Journeymap.getLogger().error(String.format("Couldn't instantiate MigrationTask %s: %s", clazz, LogFormatter.toPartialString(t)));
                         success = false;
                     }
                 }
             }
         }
         catch (Throwable t2) {
-            Journeymap.getLogger().error("Couldn't find MigrationTasks: " + t2, (Object)LogFormatter.toPartialString(t2));
+            Journeymap.getLogger().error(String.format("Couldn't find MigrationTasks: %s", LogFormatter.toPartialString(t2)));
             success = false;
         }
         for (final MigrationTask task2 : tasks) {

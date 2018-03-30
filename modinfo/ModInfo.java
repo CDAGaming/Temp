@@ -48,7 +48,7 @@ public class ModInfo
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, "Unable to configure ModInfo", t);
+            ModInfo.LOGGER.error("Unable to configure ModInfo", t);
         }
     }
     
@@ -101,7 +101,7 @@ public class ModInfo
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, t.getMessage(), t);
+            ModInfo.LOGGER.error(t.getMessage(), t);
         }
     }
     
@@ -151,7 +151,7 @@ public class ModInfo
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, t.getMessage(), t);
+            ModInfo.LOGGER.error(t.getMessage(), t);
         }
     }
     
@@ -167,7 +167,7 @@ public class ModInfo
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, t.getMessage(), t);
+            ModInfo.LOGGER.error(t.getMessage(), t);
         }
     }
     
@@ -182,7 +182,7 @@ public class ModInfo
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, t.getMessage(), t);
+            ModInfo.LOGGER.error(t.getMessage(), t);
         }
     }
     

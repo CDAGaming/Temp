@@ -1,18 +1,19 @@
 package journeymap.client.model;
 
-import net.minecraftforge.fml.client.*;
-import journeymap.client.data.*;
 import journeymap.common.*;
+import journeymap.client.data.*;
 import journeymap.common.log.*;
-import net.minecraft.client.*;
+import net.minecraft.client.entity.*;
+import net.minecraft.world.*;
 import net.minecraft.util.math.*;
 import net.minecraft.entity.monster.*;
+import net.minecraft.entity.item.*;
 import net.minecraft.entity.player.*;
 import net.minecraft.entity.*;
-import net.minecraft.client.entity.*;
 import java.util.*;
 import com.google.common.collect.*;
 import net.minecraft.util.*;
+import net.minecraftforge.fml.client.*;
 import net.minecraft.entity.passive.*;
 import journeymap.client.log.*;
 import net.minecraft.client.renderer.entity.*;
@@ -24,21 +25,29 @@ public class EntityHelper
     public static EntityMapComparator entityMapComparator;
     private static final String[] HORSE_TEXTURES;
     
-    public static List<EntityDTO> getEntitiesNearby(final String timerName, final int maxEntities, final boolean hostile, final Class... entityClasses) {
+    public static List<EntityDTO> getEntitiesNearby(final String timerName, final int maxEntities, final boolean living, final boolean hostile, final Class<?>... entityClasses) {
         final StatTimer timer = StatTimer.get("EntityHelper." + timerName);
         timer.start();
-        final Minecraft mc = FMLClientHandler.instance().getClient();
         List<EntityDTO> list = new ArrayList<EntityDTO>();
-        final List<Entity> allEntities = new ArrayList<Entity>(mc.field_71441_e.field_72996_f);
-        final AxisAlignedBB bb = getBB(mc.field_71439_g);
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        final World world = Journeymap.clientWorld();
+        final List<Entity> allEntities = new ArrayList<Entity>(world.field_72996_f);
+        final AxisAlignedBB bb = getBB(player);
         try {
             for (final Entity entity : allEntities) {
-                if (entity instanceof EntityLivingBase && !entity.field_70128_L && entity.field_70175_ag && bb.func_72326_a(entity.func_174813_aQ())) {
-                    for (final Class entityClass : entityClasses) {
+                if (living) {
+                    if (!(entity instanceof EntityLivingBase)) {
+                        continue;
+                    }
+                    if (entity.field_70128_L) {
+                        continue;
+                    }
+                }
+                if (entity.field_70175_ag && bb.func_72326_a(entity.func_174813_aQ())) {
+                    for (final Class<?> entityClass : entityClasses) {
                         if (entityClass.isAssignableFrom(entity.getClass())) {
-                            final EntityLivingBase entityLivingBase = (EntityLivingBase)entity;
-                            final EntityDTO dto = DataCache.INSTANCE.getEntityDTO(entityLivingBase);
-                            dto.update(entityLivingBase, hostile);
+                            final EntityDTO dto = DataCache.INSTANCE.getEntityDTO(entity);
+                            dto.update(entity, hostile);
                             list.add(dto);
                             break;
                         }
@@ -47,7 +56,7 @@ public class EntityHelper
             }
             if (list.size() > maxEntities) {
                 final int before = list.size();
-                EntityHelper.entityDTODistanceComparator.player = (EntityPlayer)mc.field_71439_g;
+                EntityHelper.entityDTODistanceComparator.player = (EntityPlayer)player;
                 Collections.sort(list, EntityHelper.entityDTODistanceComparator);
                 list = list.subList(0, maxEntities);
             }
@@ -60,15 +69,19 @@ public class EntityHelper
     }
     
     public static List<EntityDTO> getMobsNearby() {
-        return getEntitiesNearby("getMobsNearby", Journeymap.getClient().getCoreProperties().maxMobsData.get(), true, IMob.class);
+        return getEntitiesNearby("getMobsNearby", Journeymap.getClient().getCoreProperties().maxMobsData.get(), true, true, IMob.class);
     }
     
-    public static List<EntityDTO> getVillagersNearby() {
-        return getEntitiesNearby("getVillagersNearby", Journeymap.getClient().getCoreProperties().maxVillagersData.get(), false, EntityVillager.class, INpc.class);
+    public static List<EntityDTO> getNpcsNearby() {
+        return getEntitiesNearby("getNpcsNearby", Journeymap.getClient().getCoreProperties().maxVillagersData.get(), true, false, INpc.class, IMerchant.class);
     }
     
-    public static List<EntityDTO> getAnimalsNearby() {
-        return getEntitiesNearby("getAnimalsNearby", Journeymap.getClient().getCoreProperties().maxAnimalsData.get(), false, EntityAnimal.class, EntityGolem.class, EntityWaterMob.class);
+    public static List<EntityDTO> getPassiveMobsNearby() {
+        return getEntitiesNearby("getPassiveMobsNearby", Journeymap.getClient().getCoreProperties().maxAnimalsData.get(), true, false, EntityAnimal.class, EntityGolem.class, EntityWaterMob.class);
+    }
+    
+    public static List<EntityDTO> getVehiclesNearby() {
+        return getEntitiesNearby("getVehiclesNearby", Journeymap.getClient().getCoreProperties().maxVehiclesData.get(), false, false, EntityMinecart.class, EntityBoat.class);
     }
     
     public static boolean isPassive(final EntityLiving entityLiving) {
@@ -85,19 +98,20 @@ public class EntityHelper
     public static List<EntityDTO> getPlayersNearby() {
         final StatTimer timer = StatTimer.get("EntityHelper.getPlayersNearby");
         timer.start();
-        final Minecraft mc = FMLClientHandler.instance().getClient();
-        List<EntityPlayer> allPlayers = new ArrayList<EntityPlayer>(mc.field_71441_e.field_73010_i);
-        allPlayers.remove(mc.field_71439_g);
+        final World world = Journeymap.clientWorld();
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        List<EntityPlayer> allPlayers = new ArrayList<EntityPlayer>(world.field_73010_i);
+        allPlayers.remove(player);
         final int max = Journeymap.getClient().getCoreProperties().maxPlayersData.get();
         if (allPlayers.size() > max) {
-            EntityHelper.entityDistanceComparator.player = (EntityPlayer)mc.field_71439_g;
+            EntityHelper.entityDistanceComparator.player = (EntityPlayer)player;
             Collections.sort(allPlayers, (Comparator<? super EntityPlayer>)EntityHelper.entityDistanceComparator);
             allPlayers = allPlayers.subList(0, max);
         }
         final List<EntityDTO> playerDTOs = new ArrayList<EntityDTO>(allPlayers.size());
-        for (final EntityPlayer player : allPlayers) {
-            final EntityDTO dto = DataCache.INSTANCE.getEntityDTO((EntityLivingBase)player);
-            dto.update((EntityLivingBase)player, false);
+        for (final EntityPlayer aPlayer : allPlayers) {
+            final EntityDTO dto = DataCache.INSTANCE.getEntityDTO((Entity)aPlayer);
+            dto.update((Entity)aPlayer, false);
             playerDTOs.add(dto);
         }
         timer.stop();
@@ -111,7 +125,7 @@ public class EntityHelper
     }
     
     public static AxisAlignedBB getBoundingBox(final EntityPlayer player, final double lateralDistance, final double verticalDistance) {
-        return player.func_174813_aQ().func_72314_b(lateralDistance, verticalDistance, lateralDistance);
+        return new AxisAlignedBB(player.field_70165_t, player.field_70163_u, player.field_70161_v, player.field_70165_t, player.field_70163_u, player.field_70161_v).func_72321_a(lateralDistance, verticalDistance, lateralDistance);
     }
     
     public static Map<String, EntityDTO> buildEntityIdMap(final List<? extends EntityDTO> list, final boolean sort) {
@@ -200,8 +214,8 @@ public class EntityHelper
         
         @Override
         public int compare(final EntityDTO o1, final EntityDTO o2) {
-            final EntityLivingBase e1 = o1.entityLivingRef.get();
-            final EntityLivingBase e2 = o2.entityLivingRef.get();
+            final Entity e1 = o1.entityRef.get();
+            final Entity e2 = o2.entityRef.get();
             if (e1 == null || e2 == null) {
                 return 0;
             }

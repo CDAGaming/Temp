@@ -2,6 +2,7 @@ package journeymap.client.api.impl;
 
 import org.apache.logging.log4j.*;
 import journeymap.client.render.draw.*;
+import journeymap.common.api.feature.*;
 import journeymap.common.*;
 import journeymap.client.ui.minimap.*;
 import journeymap.client.ui.fullscreen.*;
@@ -16,9 +17,11 @@ import journeymap.client.io.*;
 import journeymap.client.task.multi.*;
 import java.io.*;
 import java.util.*;
-import org.apache.logging.log4j.util.*;
+import com.google.common.base.*;
 import journeymap.client.api.*;
 import journeymap.client.api.util.*;
+import journeymap.common.api.*;
+import journeymap.common.api.util.*;
 
 @ParametersAreNonnullByDefault
 public enum ClientAPI implements IClientAPI
@@ -27,27 +30,27 @@ public enum ClientAPI implements IClientAPI
     
     private final Logger LOGGER;
     private final List<OverlayDrawStep> lastDrawSteps;
-    private HashMap<String, PluginWrapper> plugins;
+    private HashMap<String, ClientPluginWrapper> plugins;
     private ClientEventManager clientEventManager;
     private boolean drawStepsUpdateNeeded;
-    private Context.UI lastUi;
-    private Context.MapType lastMapType;
+    private Feature.Display lastUi;
+    private Feature.MapType lastMapType;
     private int lastDimension;
     
     private ClientAPI() {
         this.LOGGER = Journeymap.getLogger();
         this.lastDrawSteps = new ArrayList<OverlayDrawStep>();
-        this.plugins = new HashMap<String, PluginWrapper>();
+        this.plugins = new HashMap<String, ClientPluginWrapper>();
         this.clientEventManager = new ClientEventManager(this.plugins.values());
         this.drawStepsUpdateNeeded = true;
-        this.lastUi = Context.UI.Any;
-        this.lastMapType = Context.MapType.Any;
+        this.lastUi = null;
+        this.lastMapType = null;
         this.lastDimension = Integer.MIN_VALUE;
-        this.log("built with JourneyMap API 1.4");
+        this.log("built with JourneyMap API 2.0-SNAPSHOT");
     }
     
     @Override
-    public UIState getUIState(final Context.UI ui) {
+    public UIState getUIState(final Feature.Display ui) {
         switch (ui) {
             case Minimap: {
                 return MiniMap.uiState();
@@ -156,7 +159,7 @@ public enum ClientAPI implements IClientAPI
     }
     
     @Override
-    public void requestMapTile(final String modId, final int dimension, final Context.MapType apiMapType, final ChunkPos startChunk, final ChunkPos endChunk, @Nullable final Integer chunkY, final int zoom, final boolean showGrid, final Consumer<BufferedImage> callback) {
+    public void requestMapTile(final String modId, final int dimension, final Feature.MapType apiMapType, final ChunkPos startChunk, final ChunkPos endChunk, @Nullable final Integer chunkY, final int zoom, final boolean showGrid, final Consumer<BufferedImage> callback) {
         this.log("requestMapTile");
         boolean honorRequest = true;
         final File worldDir = FileHandler.getJMWorldDir(Minecraft.func_71410_x());
@@ -198,7 +201,7 @@ public enum ClientAPI implements IClientAPI
         }
         if (this.drawStepsUpdateNeeded) {
             this.lastDrawSteps.clear();
-            for (final PluginWrapper pluginWrapper : this.plugins.values()) {
+            for (final ClientPluginWrapper pluginWrapper : this.plugins.values()) {
                 pluginWrapper.getDrawSteps(this.lastDrawSteps, uiState);
             }
             Collections.sort(this.lastDrawSteps, new Comparator<OverlayDrawStep>() {
@@ -213,55 +216,55 @@ public enum ClientAPI implements IClientAPI
     }
     
     @Override
-    public void toggleDisplay(@Nullable final Integer dimension, final Context.MapType mapType, final Context.UI mapUI, final boolean enable) {
-        this.log(String.format("Toggled display in %s:%s:%s:%s", dimension, mapType, mapUI, enable));
+    public boolean isDisplayEnabled(final int dimension, final Feature.Display display) {
+        return true;
     }
     
     @Override
-    public void toggleWaypoints(@Nullable final Integer dimension, final Context.MapType mapType, final Context.UI mapUI, final boolean enable) {
-        this.log(String.format("Toggled waypoints in %s:%s:%s:%s", dimension, mapType, mapUI, enable));
+    public boolean isMapTypeEnabled(final int dimension, final Feature.MapType mapType) {
+        return true;
     }
     
     @Override
-    public boolean isDisplayEnabled(@Nullable final Integer dimension, final Context.MapType mapType, final Context.UI mapUI) {
-        return false;
+    public boolean isRadarEnabled(final int dimension, final Feature.Radar radar) {
+        return true;
     }
     
-    @Override
-    public boolean isWaypointsEnabled(@Nullable final Integer dimension, final Context.MapType mapType, final Context.UI mapUI) {
-        return false;
-    }
-    
-    private PluginWrapper getPlugin(final String modId) {
-        if (Strings.isEmpty((CharSequence)modId)) {
+    private ClientPluginWrapper getPlugin(final String modId) {
+        if (Strings.isNullOrEmpty(modId)) {
             throw new IllegalArgumentException("Invalid modId: " + modId);
         }
-        PluginWrapper pluginWrapper = this.plugins.get(modId);
-        if (pluginWrapper == null) {
-            IClientPlugin plugin = PluginHelper.INSTANCE.getPlugins().get(modId);
+        IClientPlugin plugin;
+        return this.plugins.computeIfAbsent(modId, key -> {
+            plugin = ((PluginHelper<A, IClientPlugin>)ClientPluginHelper.instance()).getPlugins().get(modId);
             if (plugin == null) {
-                if (!modId.equals("journeymap")) {
-                    throw new IllegalArgumentException("No plugin found for modId: " + modId);
+                if (modId.equals("journeymap")) {
+                    plugin = new IClientPlugin() {
+                        @Override
+                        public void initialize(final IClientAPI jmClientApi) {
+                        }
+                        
+                        @Override
+                        public String getModId() {
+                            return "journeymap";
+                        }
+                        
+                        @Override
+                        public void onEvent(final ClientEvent event) {
+                        }
+                    };
                 }
-                plugin = new IClientPlugin() {
-                    @Override
-                    public void initialize(final IClientAPI jmClientApi) {
-                    }
-                    
-                    @Override
-                    public String getModId() {
-                        return "journeymap";
-                    }
-                    
-                    @Override
-                    public void onEvent(final ClientEvent event) {
-                    }
-                };
+                else {
+                    this.logError("No plugin found for modId: " + modId);
+                }
             }
-            pluginWrapper = new PluginWrapper(plugin);
-            this.plugins.put(modId, pluginWrapper);
-        }
-        return pluginWrapper;
+            if (plugin != null) {
+                return new ClientPluginWrapper(plugin);
+            }
+            else {
+                return null;
+            }
+        });
     }
     
     public boolean isDrawStepsUpdateNeeded() {

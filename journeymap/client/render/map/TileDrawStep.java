@@ -24,7 +24,7 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
     private static final RegionImageCache regionImageCache;
     private boolean debug;
     private final RegionCoord regionCoord;
-    private final MapType mapType;
+    private final MapView mapView;
     private final Integer zoom;
     private final boolean highQuality;
     private final StatTimer drawTimer;
@@ -44,11 +44,11 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
     private int lastTextureFilter;
     private int lastTextureWrap;
     
-    public TileDrawStep(final RegionCoord regionCoord, final MapType mapType, final Integer zoom, final boolean highQuality, final int sx1, final int sy1, final int sx2, final int sy2) {
+    public TileDrawStep(final RegionCoord regionCoord, final MapView mapView, final Integer zoom, final boolean highQuality, final int sx1, final int sy1, final int sx2, final int sy2) {
         this.debug = false;
         this.updateRegionTimer = StatTimer.get("TileDrawStep.updateRegionTexture", 5, 50);
         this.updateScaledTimer = StatTimer.get("TileDrawStep.updateScaledTexture", 5, 50);
-        this.mapType = mapType;
+        this.mapView = mapView;
         this.regionCoord = regionCoord;
         this.regionImageSetKey = RegionImageSet.Key.from(regionCoord);
         this.zoom = zoom;
@@ -58,7 +58,7 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
         this.sy2 = sy2;
         this.highQuality = (highQuality && zoom != 0);
         this.drawTimer = (this.highQuality ? StatTimer.get("TileDrawStep.draw(high)") : StatTimer.get("TileDrawStep.draw(low)"));
-        this.theCacheKey = toCacheKey(regionCoord, mapType, zoom, highQuality, sx1, sy1, sx2, sy2);
+        this.theCacheKey = toCacheKey(regionCoord, mapView, zoom, highQuality, sx1, sy1, sx2, sy2);
         this.theHashCode = this.theCacheKey.hashCode();
         this.updateRegionTexture();
         if (highQuality) {
@@ -66,12 +66,12 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
         }
     }
     
-    public static String toCacheKey(final RegionCoord regionCoord, final MapType mapType, final Integer zoom, final boolean highQuality, final int sx1, final int sy1, final int sx2, final int sy2) {
-        return regionCoord.cacheKey() + mapType.toCacheKey() + zoom + highQuality + sx1 + "," + sy1 + "," + sx2 + "," + sy2;
+    public static String toCacheKey(final RegionCoord regionCoord, final MapView mapView, final Integer zoom, final boolean highQuality, final int sx1, final int sy1, final int sx2, final int sy2) {
+        return regionCoord.cacheKey() + mapView.toCacheKey() + zoom + highQuality + sx1 + "," + sy1 + "," + sx2 + "," + sy2;
     }
     
     ImageHolder getRegionTextureHolder() {
-        return TileDrawStep.regionImageCache.getRegionImageSet(this.regionImageSetKey).getHolder(this.mapType);
+        return TileDrawStep.regionImageCache.getRegionImageSet(this.regionImageSetKey).getHolder(this.mapView);
     }
     
     boolean draw(final TilePos pos, final double offsetX, final double offsetZ, final float alpha, final int textureFilter, final int textureWrap, final GridSpec gridSpec) {
@@ -135,7 +135,7 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
             DrawUtil.drawLabel(String.format("Tile Render Type: %s, Scaled: %s", Tile.debugGlSettings, useScaled), debugX + 5, debugY + 20, DrawUtil.HAlign.Right, DrawUtil.VAlign.Below, 16777215, 255.0f, 255, 255.0f, 1.0, false);
             final long imageTimestamp = useScaled ? this.scaledTexture.getLastImageUpdate() : this.getRegionTextureHolder().getImageTimestamp();
             final long age = (System.currentTimeMillis() - imageTimestamp) / 1000L;
-            DrawUtil.drawLabel(this.mapType + " tile age: " + age + " seconds old", debugX + 5, debugY + 30, DrawUtil.HAlign.Right, DrawUtil.VAlign.Below, 16777215, 255.0f, 255, 255.0f, 1.0, false);
+            DrawUtil.drawLabel(this.mapView + " tile age: " + age + " seconds old", debugX + 5, debugY + 30, DrawUtil.HAlign.Right, DrawUtil.VAlign.Below, 16777215, 255.0f, 255, 255.0f, 1.0, false);
         }
         GlStateManager.func_179131_c(1.0f, 1.0f, 1.0f, 1.0f);
         GlStateManager.func_179082_a(1.0f, 1.0f, 1.0f, 1.0f);
@@ -161,8 +161,8 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
         this.regionFuture = null;
     }
     
-    public MapType getMapType() {
-        return this.mapType;
+    public MapView getMapType() {
+        return this.mapView;
     }
     
     public Integer getZoom() {
@@ -180,11 +180,11 @@ public class TileDrawStep implements TextureImpl.Listener<RegionTextureImpl>
     
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper((Object)this).add("rc", (Object)this.regionCoord).add("type", (Object)this.mapType).add("high", this.highQuality).add("zoom", (Object)this.zoom).add("sx1", this.sx1).add("sy1", this.sy1).toString();
+        return MoreObjects.toStringHelper((Object)this).add("rc", (Object)this.regionCoord).add("type", (Object)this.mapView).add("high", this.highQuality).add("zoom", (Object)this.zoom).add("sx1", this.sx1).add("sy1", this.sy1).toString();
     }
     
-    boolean hasTexture(final MapType mapType) {
-        if (!Objects.equal((Object)this.mapType, (Object)mapType)) {
+    boolean hasTexture(final MapView mapView) {
+        if (!Objects.equal((Object)this.mapView, (Object)mapView)) {
             return false;
         }
         if (this.highQuality) {

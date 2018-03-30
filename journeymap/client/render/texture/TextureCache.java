@@ -137,7 +137,6 @@ public class TextureCache
                 }
                 if (img == null) {
                     Journeymap.getLogger().error("Unknown theme image: " + texName);
-                    IconSetFileHandler.ensureEntityIconSet("Default");
                     return getTexture(TextureCache.UnknownEntity);
                 }
                 if ((resize || alpha < 1.0f) && (alpha < 1.0f || img.getWidth() != width || img.getHeight() != height)) {

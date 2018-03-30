@@ -2,7 +2,7 @@ package journeymap.client.api.impl;
 
 import journeymap.client.api.event.*;
 import java.util.*;
-import journeymap.client.api.display.*;
+import journeymap.common.api.feature.*;
 
 class DisplayUpdateEventThrottle
 {

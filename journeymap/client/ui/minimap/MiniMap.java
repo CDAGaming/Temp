@@ -3,10 +3,13 @@ package journeymap.client.ui.minimap;
 import journeymap.client.render.map.*;
 import net.minecraft.client.*;
 import java.awt.geom.*;
+import net.minecraft.client.entity.*;
 import net.minecraftforge.fml.client.*;
+import journeymap.common.*;
 import journeymap.client.api.util.*;
 import net.minecraft.entity.player.*;
-import journeymap.common.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import journeymap.client.api.impl.*;
 import net.minecraft.client.renderer.*;
 import journeymap.client.log.*;
@@ -14,12 +17,12 @@ import journeymap.client.render.draw.*;
 import java.util.*;
 import org.lwjgl.opengl.*;
 import journeymap.client.data.*;
+import net.minecraft.world.*;
 import journeymap.client.model.*;
 import journeymap.client.forge.event.*;
 import journeymap.client.render.texture.*;
 import journeymap.client.properties.*;
 import net.minecraft.util.math.*;
-import journeymap.client.api.display.*;
 
 public class MiniMap
 {
@@ -37,17 +40,21 @@ public class MiniMap
     private StatTimer drawTimer;
     private StatTimer refreshStateTimer;
     private DisplayVars dv;
+    private boolean minimapAllowed;
+    private boolean mapViewAllowed;
     private Point2D.Double centerPoint;
     private Rectangle2D.Double centerRect;
     private long initTime;
     private long lastAutoDayNightTime;
     private Boolean lastPlayerUnderground;
+    private EntityPlayerSP player;
     
     public MiniMap(final MiniMapProperties miniMapProperties) {
         this.mc = FMLClientHandler.instance().getClient();
         this.waypointRenderer = new WaypointDrawStepFactory();
         this.radarRenderer = new RadarDrawStepFactory();
         this.lastAutoDayNightTime = -1L;
+        this.player = Journeymap.clientPlayer();
         this.initTime = System.currentTimeMillis();
         this.setMiniMapProperties(miniMapProperties);
     }
@@ -61,7 +68,7 @@ public class MiniMap
     }
     
     public static void updateUIState(final boolean isActive) {
-        if (FMLClientHandler.instance().getClient().field_71441_e != null) {
+        if (Journeymap.clientWorld() != null) {
             MiniMap.gridRenderer.updateUIState(isActive);
         }
     }
@@ -69,17 +76,18 @@ public class MiniMap
     private void initGridRenderer() {
         MiniMap.gridRenderer.clear();
         MiniMap.state.requireRefresh();
-        if (this.mc.field_71439_g == null || this.mc.field_71439_g.field_70128_L) {
+        this.player = Journeymap.clientPlayer();
+        if (this.player == null || this.player.field_70128_L) {
             return;
         }
-        MiniMap.state.refresh(this.mc, (EntityPlayer)this.mc.field_71439_g, this.miniMapProperties);
-        final MapType mapType = MiniMap.state.getMapType();
+        MiniMap.state.refresh(this.mc, (EntityPlayer)this.player, this.miniMapProperties);
+        final MapView mapView = MiniMap.state.getMapView();
         final int gridSize = (this.miniMapProperties.getSize() <= 768) ? 3 : 5;
         MiniMap.gridRenderer.setGridSize(gridSize);
-        MiniMap.gridRenderer.setContext(MiniMap.state.getWorldDir(), mapType);
-        MiniMap.gridRenderer.center(MiniMap.state.getWorldDir(), mapType, this.mc.field_71439_g.field_70165_t, this.mc.field_71439_g.field_70161_v, this.miniMapProperties.zoomLevel.get());
+        MiniMap.gridRenderer.setContext(MiniMap.state.getWorldDir(), mapView);
+        MiniMap.gridRenderer.center(MiniMap.state.getWorldDir(), mapView, this.player.field_70165_t, this.player.field_70161_v, this.miniMapProperties.zoomLevel.get());
         final boolean highQuality = Journeymap.getClient().getCoreProperties().tileHighDisplayQuality.get();
-        MiniMap.gridRenderer.updateTiles(MiniMap.state.getMapType(), MiniMap.state.getZoom(), highQuality, this.mc.field_71443_c, this.mc.field_71440_d, true, 0.0, 0.0);
+        MiniMap.gridRenderer.updateTiles(MiniMap.state.getMapView(), MiniMap.state.getZoom(), highQuality, this.mc.field_71443_c, this.mc.field_71440_d, true, 0.0, 0.0);
     }
     
     public void resetInitTime() {
@@ -103,27 +111,39 @@ public class MiniMap
     public void drawMap(final boolean preview) {
         StatTimer timer = this.drawTimer;
         RenderHelper.func_74518_a();
+        if (this.player == null || this.player.field_70128_L) {
+            this.player = Journeymap.clientPlayer();
+            return;
+        }
+        if (!(this.minimapAllowed = ClientFeatures.instance().isAllowed(Feature.Display.Minimap, this.player.field_71093_bK))) {
+            return;
+        }
         try {
-            if (this.mc.field_71439_g == null || this.mc.field_71439_g.field_70128_L) {
-                return;
-            }
             MiniMap.gridRenderer.clearGlErrors(false);
             final boolean doStateRefresh = MiniMap.state.shouldRefresh(this.mc, this.miniMapProperties);
             if (doStateRefresh) {
                 timer = this.refreshStateTimer.start();
                 this.autoDayNight();
-                MiniMap.gridRenderer.setContext(MiniMap.state.getWorldDir(), MiniMap.state.getMapType());
+                MiniMap.gridRenderer.setContext(MiniMap.state.getWorldDir(), MiniMap.state.getMapView());
                 if (!preview) {
-                    MiniMap.state.refresh(this.mc, (EntityPlayer)this.mc.field_71439_g, this.miniMapProperties);
+                    MiniMap.state.refresh(this.mc, (EntityPlayer)this.player, this.miniMapProperties);
                 }
+                MapView mapView = MiniMap.state.getMapView();
+                if (!mapView.isAllowed() || mapView.isNone()) {
+                    mapView = MiniMap.state.toggleMapType();
+                }
+                this.mapViewAllowed = (!mapView.isNone() && mapView.isAllowed());
                 ClientAPI.INSTANCE.flagOverlaysForRerender();
             }
             else {
                 timer.start();
             }
-            final boolean moved = MiniMap.gridRenderer.center(MiniMap.state.getWorldDir(), MiniMap.state.getMapType(), this.mc.field_71439_g.field_70165_t, this.mc.field_71439_g.field_70161_v, this.miniMapProperties.zoomLevel.get());
+            if (!this.minimapAllowed) {
+                return;
+            }
+            final boolean moved = MiniMap.gridRenderer.center(MiniMap.state.getWorldDir(), MiniMap.state.getMapView(), this.player.field_70165_t, this.player.field_70161_v, this.miniMapProperties.zoomLevel.get());
             if (moved || doStateRefresh) {
-                MiniMap.gridRenderer.updateTiles(MiniMap.state.getMapType(), MiniMap.state.getZoom(), MiniMap.state.isHighQuality(), this.mc.field_71443_c, this.mc.field_71440_d, doStateRefresh || preview, 0.0, 0.0);
+                MiniMap.gridRenderer.updateTiles(MiniMap.state.getMapView(), MiniMap.state.getZoom(), MiniMap.state.isHighQuality(), this.mc.field_71443_c, this.mc.field_71440_d, doStateRefresh || preview, 0.0, 0.0);
             }
             if (doStateRefresh) {
                 final boolean checkWaypointDistance = Journeymap.getClient().getWaypointProperties().maxDistance.get() > 0;
@@ -151,7 +171,7 @@ public class MiniMap
                 }
                 case PlayerHeading: {
                     if (this.dv.shape == Shape.Circle) {
-                        rotation = 180.0f - this.mc.field_71439_g.field_70759_as;
+                        rotation = 180.0f - this.player.field_70759_as;
                         break;
                     }
                     break;
@@ -162,12 +182,15 @@ public class MiniMap
                 GlStateManager.func_179109_b((float)this.dv.translateX, (float)this.dv.translateY, 0.0f);
                 MiniMap.gridRenderer.draw(this.dv.terrainAlpha, 0.0, 0.0, this.miniMapProperties.showGrid.get());
                 MiniMap.gridRenderer.draw(MiniMap.state.getDrawSteps(), 0.0, 0.0, this.dv.fontScale, rotation);
-                this.centerPoint = MiniMap.gridRenderer.getPixel(this.mc.field_71439_g.field_70165_t, this.mc.field_71439_g.field_70161_v);
+                this.centerPoint = MiniMap.gridRenderer.getPixel(this.player.field_70165_t, this.player.field_70161_v);
+                if (this.centerPoint == null) {
+                    return;
+                }
                 this.centerRect = new Rectangle2D.Double(this.centerPoint.x - this.dv.minimapWidth / 2, this.centerPoint.y - this.dv.minimapHeight / 2, this.dv.minimapWidth, this.dv.minimapHeight);
                 this.drawOnMapWaypoints(rotation);
                 if (this.miniMapProperties.showSelf.get() && this.playerArrowFg != null && this.centerPoint != null) {
-                    DrawUtil.drawColoredEntity(this.centerPoint.getX(), this.centerPoint.getY(), this.playerArrowBg, 16777215, 1.0f, 1.0f, this.mc.field_71439_g.field_70759_as);
-                    DrawUtil.drawColoredEntity(this.centerPoint.getX(), this.centerPoint.getY(), this.playerArrowFg, this.playerArrowColor, 1.0f, 1.0f, this.mc.field_71439_g.field_70759_as);
+                    DrawUtil.drawColoredEntity(this.centerPoint.getX(), this.centerPoint.getY(), this.playerArrowBg, 16777215, 1.0f, 1.0f, this.player.field_70759_as);
+                    DrawUtil.drawColoredEntity(this.centerPoint.getX(), this.centerPoint.getY(), this.playerArrowFg, this.playerArrowColor, 1.0f, 1.0f, this.player.field_70759_as);
                 }
                 GlStateManager.func_179109_b((float)(-this.dv.translateX), (float)(-this.dv.translateY), 0.0f);
                 ReticleOrientation reticleOrientation = null;
@@ -177,27 +200,29 @@ public class MiniMap
                         this.dv.minimapFrame.drawReticle();
                     }
                     else {
-                        this.startMapRotation(this.mc.field_71439_g.field_70759_as);
+                        this.startMapRotation(this.player.field_70759_as);
                         this.dv.minimapFrame.drawReticle();
-                        this.stopMapRotation(this.mc.field_71439_g.field_70759_as);
+                        this.stopMapRotation(this.player.field_70759_as);
                     }
                 }
-                final long lastMapChangeTime = MiniMap.state.getLastMapTypeChange();
-                if (now - lastMapChangeTime <= 1000L) {
-                    this.stopMapRotation(rotation);
-                    GlStateManager.func_179109_b((float)this.dv.translateX, (float)this.dv.translateY, 0.0f);
-                    final float alpha = Math.min(255L, Math.max(0L, 1100L - (now - lastMapChangeTime))) / 255.0f;
-                    final Point2D.Double windowCenter = MiniMap.gridRenderer.getWindowPosition(this.centerPoint);
-                    this.dv.getMapTypeStatus(MiniMap.state.getMapType()).draw(windowCenter, alpha, 0.0);
-                    GlStateManager.func_179109_b((float)(-this.dv.translateX), (float)(-this.dv.translateY), 0.0f);
-                    this.startMapRotation(rotation);
+                if (this.mapViewAllowed) {
+                    final long lastMapChangeTime = MiniMap.state.getLastMapTypeChange();
+                    if (now - lastMapChangeTime <= 1000L) {
+                        this.stopMapRotation(rotation);
+                        GlStateManager.func_179109_b((float)this.dv.translateX, (float)this.dv.translateY, 0.0f);
+                        final float alpha = Math.min(255L, Math.max(0L, 1100L - (now - lastMapChangeTime))) / 255.0f;
+                        final Point2D.Double windowCenter = MiniMap.gridRenderer.getWindowPosition(this.centerPoint);
+                        this.dv.getMapTypeStatus(MiniMap.state.getMapView()).draw(windowCenter, alpha, 0.0);
+                        GlStateManager.func_179109_b((float)(-this.dv.translateX), (float)(-this.dv.translateY), 0.0f);
+                        this.startMapRotation(rotation);
+                    }
                 }
                 if (now - this.initTime <= 1000L) {
                     this.stopMapRotation(rotation);
                     GlStateManager.func_179109_b((float)this.dv.translateX, (float)this.dv.translateY, 0.0f);
-                    final float alpha = Math.min(255L, Math.max(0L, 1100L - (now - this.initTime))) / 255.0f;
-                    final Point2D.Double windowCenter = MiniMap.gridRenderer.getWindowPosition(this.centerPoint);
-                    this.dv.getMapPresetStatus(MiniMap.state.getMapType(), this.miniMapProperties.getId()).draw(windowCenter, alpha, 0.0);
+                    final float alpha2 = Math.min(255L, Math.max(0L, 1100L - (now - this.initTime))) / 255.0f;
+                    final Point2D.Double windowCenter2 = MiniMap.gridRenderer.getWindowPosition(this.centerPoint);
+                    this.dv.getMapPresetStatus(MiniMap.state.getMapView(), this.miniMapProperties.getId()).draw(windowCenter2, alpha2, 0.0);
                     GlStateManager.func_179109_b((float)(-this.dv.translateX), (float)(-this.dv.translateY), 0.0f);
                     this.startMapRotation(rotation);
                 }
@@ -353,8 +378,9 @@ public class MiniMap
     }
     
     private void autoDayNight() {
-        if (this.mc.field_71441_e != null) {
-            boolean wasInCaves = false;
+        final World world = Journeymap.clientWorld();
+        if (world != null) {
+            final boolean wasInCaves = false;
             if (this.miniMapProperties.showCaves.get()) {
                 final EntityDTO player = DataCache.getPlayer();
                 final boolean neverChecked = this.lastPlayerUnderground == null;
@@ -362,29 +388,25 @@ public class MiniMap
                 if (neverChecked || playerUnderground != this.lastPlayerUnderground) {
                     this.lastPlayerUnderground = playerUnderground;
                     if (playerUnderground) {
-                        MiniMap.state.setMapType(MapType.underground(player));
-                    }
-                    else {
-                        MiniMap.state.setMapType(MapType.from(this.miniMapProperties.preferredMapType.get(), player));
-                        wasInCaves = true;
+                        MiniMap.state.setMapType(MapView.underground(player));
                     }
                 }
-                final MapType currentMapType = MiniMap.state.getMapType();
+                final MapView currentMapType = MiniMap.state.getMapView();
                 if (playerUnderground && currentMapType.isUnderground() && currentMapType.vSlice != player.chunkCoordY) {
-                    MiniMap.state.setMapType(MapType.underground(player));
+                    MiniMap.state.setMapType(MapView.underground(player));
                 }
             }
-            if (this.miniMapProperties.showDayNight.get() && (wasInCaves || MiniMap.state.getMapType().isDayOrNight())) {
+            if (this.miniMapProperties.showDayNight.get() && (wasInCaves || MiniMap.state.getMapView().isDayOrNight())) {
                 final long NIGHT = 13800L;
-                final long worldTime = this.mc.field_71441_e.func_72820_D() % 24000L;
+                final long worldTime = world.func_72820_D() % 24000L;
                 final boolean neverChecked2 = this.lastAutoDayNightTime == -1L;
                 if (worldTime >= 13800L && (neverChecked2 || this.lastAutoDayNightTime < 13800L)) {
                     this.lastAutoDayNightTime = worldTime;
-                    MiniMap.state.setMapType(MapType.night(this.mc.field_71441_e.field_73011_w.getDimension()));
+                    MiniMap.state.setMapType(MapView.night(world.field_73011_w.getDimension()));
                 }
                 else if (worldTime < 13800L && (neverChecked2 || this.lastAutoDayNightTime >= 13800L)) {
                     this.lastAutoDayNightTime = worldTime;
-                    MiniMap.state.setMapType(MapType.day(this.mc.field_71441_e.field_73011_w.getDimension()));
+                    MiniMap.state.setMapType(MapView.day(world.field_73011_w.getDimension()));
                 }
             }
         }
@@ -442,10 +464,10 @@ public class MiniMap
     }
     
     public String getLocation() {
-        final int playerX = MathHelper.func_76128_c(this.mc.field_71439_g.field_70165_t);
-        final int playerZ = MathHelper.func_76128_c(this.mc.field_71439_g.field_70161_v);
-        final int playerY = MathHelper.func_76128_c(this.mc.field_71439_g.func_174813_aQ().field_72338_b);
-        return this.dv.locationFormatKeys.format(this.dv.locationFormatVerbose, playerX, playerZ, playerY, this.mc.field_71439_g.field_70162_ai);
+        final int playerX = MathHelper.func_76128_c(this.player.field_70165_t);
+        final int playerZ = MathHelper.func_76128_c(this.player.field_70161_v);
+        final int playerY = MathHelper.func_76128_c(this.player.func_174813_aQ().field_72338_b);
+        return this.dv.locationFormatKeys.format(this.dv.locationFormatVerbose, playerX, playerZ, playerY, this.player.field_70162_ai);
     }
     
     public String getBiome() {
@@ -454,6 +476,6 @@ public class MiniMap
     
     static {
         state = new MapState();
-        gridRenderer = new GridRenderer(Context.UI.Minimap, 3);
+        gridRenderer = new GridRenderer(Feature.Display.Minimap, 3);
     }
 }

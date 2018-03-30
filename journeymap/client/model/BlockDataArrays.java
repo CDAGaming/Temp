@@ -6,21 +6,21 @@ import java.util.function.*;
 
 public class BlockDataArrays
 {
-    private HashMap<MapType, Dataset> datasets;
+    private HashMap<MapView, Dataset> datasets;
     
     public BlockDataArrays() {
-        this.datasets = new HashMap<MapType, Dataset>(8);
+        this.datasets = new HashMap<MapView, Dataset>(8);
     }
     
     public void clearAll() {
         this.datasets.clear();
     }
     
-    public Dataset get(final MapType mapType) {
-        Dataset dataset = this.datasets.get(mapType);
+    public Dataset get(final MapView mapView) {
+        Dataset dataset = this.datasets.get(mapView);
         if (dataset == null) {
             dataset = new Dataset();
-            this.datasets.put(mapType, dataset);
+            this.datasets.put(mapView, dataset);
         }
         return dataset;
     }
@@ -48,7 +48,7 @@ public class BlockDataArrays
         Dataset() {
         }
         
-        public Dataset(final MapType mapType) {
+        public Dataset(final MapView mapView) {
         }
         
         protected void clear() {

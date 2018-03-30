@@ -129,23 +129,15 @@ public class ThemeButton extends BooleanPropertyButton
         final int drawY = this.getY();
         if (this.buttonSpec.useThemeImages) {
             final Theme.ColorSpec buttonColorSpec = this.getButtonColor(isMouseOver);
-            float buttonScale = 1.0f;
-            if (this.buttonSpec.width != activeTexture.getWidth()) {
-                buttonScale = 1.0f * this.buttonSpec.width / activeTexture.getWidth();
-            }
-            DrawUtil.drawColoredImage(activeTexture, buttonColorSpec.getColor(), buttonColorSpec.alpha, drawX, drawY, buttonScale, 0.0);
+            DrawUtil.drawQuad(activeTexture, buttonColorSpec.getColor(), buttonColorSpec.alpha, drawX, drawY, this.buttonSpec.width, this.buttonSpec.height, false, 0.0);
         }
         else {
             this.drawNativeButton(minecraft, mouseX, mouseY);
         }
-        float iconScale = 1.0f;
-        if (this.theme.icon.width != this.textureIcon.getWidth()) {
-            iconScale = 1.0f * this.theme.icon.width / this.textureIcon.getWidth();
-        }
         if (!this.buttonSpec.useThemeImages) {
-            DrawUtil.drawColoredImage(this.textureIcon, 0, iconColorSpec.alpha, drawX + 0.5, drawY + 0.5, iconScale, 0.0);
+            DrawUtil.drawQuad(this.textureIcon, 0, iconColorSpec.alpha, drawX + 0.5, drawY + 0.5, this.buttonSpec.width, this.buttonSpec.height, false, 0.0);
         }
-        DrawUtil.drawColoredImage(this.textureIcon, iconColorSpec.getColor(), iconColorSpec.alpha, drawX, drawY, iconScale, 0.0);
+        DrawUtil.drawQuad(this.textureIcon, iconColorSpec.getColor(), iconColorSpec.alpha, drawX, drawY, this.buttonSpec.width, this.buttonSpec.height, false, 0.0);
     }
     
     public void drawNativeButton(final Minecraft minecraft, final int mouseX, final int mouseY) {
@@ -179,7 +171,7 @@ public class ThemeButton extends BooleanPropertyButton
             style = (this.toggled ? this.buttonSpec.tooltipOnStyle : this.buttonSpec.tooltipOffStyle);
         }
         list.add(0, style + this.field_146126_j);
-        if (this.additionalTooltips != null) {
+        if (this.field_146124_l && this.additionalTooltips != null) {
             list.addAll(this.additionalTooltips);
         }
         return list;

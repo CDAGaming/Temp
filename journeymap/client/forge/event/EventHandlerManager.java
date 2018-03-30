@@ -4,7 +4,6 @@ import journeymap.client.cartography.color.*;
 import net.minecraft.command.*;
 import journeymap.client.command.*;
 import net.minecraftforge.client.*;
-import journeymap.client.world.*;
 import java.util.*;
 import journeymap.common.*;
 import net.minecraftforge.common.*;
@@ -27,7 +26,6 @@ public class EventHandlerManager
         clientCommandInvoker.register((ICommand)new CmdChatPosition());
         clientCommandInvoker.register((ICommand)new CmdEditWaypoint());
         ClientCommandHandler.instance.func_71560_a((ICommand)clientCommandInvoker);
-        register(ChunkMonitor.INSTANCE);
     }
     
     public static void unregisterAll() {

@@ -14,8 +14,9 @@ public abstract class Displayable implements Comparable<Displayable>
     protected final String id;
     @Since(1.1)
     protected final DisplayType displayType;
+    private transient String guid;
     
-    private Displayable() {
+    protected Displayable() {
         this.modId = null;
         this.id = null;
         this.displayType = null;
@@ -60,7 +61,10 @@ public abstract class Displayable implements Comparable<Displayable>
     }
     
     public final String getGuid() {
-        return Joiner.on(":").join((Object)this.modId, (Object)this.displayType, new Object[] { this.id });
+        if (this.guid == null) {
+            this.guid = Joiner.on(":").join((Object)this.modId, (Object)this.displayType, new Object[] { this.id });
+        }
+        return this.guid;
     }
     
     @Override

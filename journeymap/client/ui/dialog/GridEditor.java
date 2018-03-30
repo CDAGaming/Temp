@@ -35,7 +35,7 @@ public class GridEditor extends JmUI
     private ThemeToggle buttonNight;
     private ThemeToggle buttonUnderground;
     private Integer activeColor;
-    private MapType activeMapType;
+    private MapView activeMapType;
     private Button buttonReset;
     private Button buttonCancel;
     private Button buttonClose;
@@ -54,7 +54,7 @@ public class GridEditor extends JmUI
         this.colorPickTexture = TextureCache.getTexture(this.colorPicResource);
         this.colorPickRect = new Rectangle2D.Double(0.0, 0.0, this.colorPickTexture.getWidth(), this.colorPickTexture.getHeight());
         this.gridSpecs = Journeymap.getClient().getCoreProperties().gridSpecs.clone();
-        this.activeMapType = MapType.day(0);
+        this.activeMapType = MapView.day(0);
         this.activeColor = this.gridSpecs.getSpec(this.activeMapType).getColor();
         Keyboard.enableRepeatEvents(true);
     }
@@ -67,13 +67,13 @@ public class GridEditor extends JmUI
                 this.buttonStyle = new ListPropertyButton<GridSpec.Style>(EnumSet.allOf(GridSpec.Style.class), Constants.getString("jm.common.grid_style"), new EnumField<GridSpec.Style>(Category.Hidden, "", spec.style));
                 this.buttonOpacity = new IntSliderButton(new IntegerField(Category.Hidden, "", 0, 100, (int)Math.ceil(spec.alpha * 100.0f)), Constants.getString("jm.common.grid_opacity") + " : ", "", 0, 100, true);
                 (this.topButtons = new ButtonList(new Button[] { this.buttonStyle, this.buttonOpacity })).equalizeWidths(this.getFontRenderer());
-                this.checkDay = new CheckBox("", this.activeMapType == MapType.day(0));
-                this.checkNight = new CheckBox("", this.activeMapType == MapType.night(0));
+                this.checkDay = new CheckBox("", this.activeMapType == MapView.day(0));
+                this.checkNight = new CheckBox("", this.activeMapType == MapView.night(0));
                 this.checkUnderground = new CheckBox("", this.activeMapType.isUnderground());
                 this.leftChecks = new ButtonList(new Button[] { this.checkDay, this.checkNight, this.checkUnderground });
                 final Theme theme = ThemeLoader.getCurrentTheme();
-                (this.buttonDay = new ThemeToggle(theme, "jm.fullscreen.map_day", "day")).setToggled(this.activeMapType == MapType.day(0), false);
-                (this.buttonNight = new ThemeToggle(theme, "jm.fullscreen.map_night", "night")).setToggled(this.activeMapType == MapType.night(0), false);
+                (this.buttonDay = new ThemeToggle(theme, "jm.fullscreen.map_day", "day")).setToggled(this.activeMapType == MapView.day(0), false);
+                (this.buttonNight = new ThemeToggle(theme, "jm.fullscreen.map_night", "night")).setToggled(this.activeMapType == MapView.night(0), false);
                 (this.buttonUnderground = new ThemeToggle(theme, "jm.fullscreen.map_caves", "caves")).setToggled(this.activeMapType.isUnderground(), false);
                 this.leftButtons = new ButtonList(new Button[] { this.buttonDay, this.buttonNight, this.buttonUnderground });
                 this.buttonReset = new Button(Constants.getString("jm.waypoint.reset"));
@@ -123,13 +123,13 @@ public class GridEditor extends JmUI
     }
     
     @Override
-    public void func_73863_a(final int x, final int y, final float par3) {
+    public void func_73863_a(final int mouseX, final int mouseY, final float par3) {
         try {
             this.func_146278_c(0);
             this.layoutButtons();
             for (int k = 0; k < this.field_146292_n.size(); ++k) {
                 final GuiButton guibutton = this.field_146292_n.get(k);
-                guibutton.func_191745_a(this.field_146297_k, x, y, 0.0f);
+                guibutton.func_191745_a(this.field_146297_k, mouseX, mouseY, par3);
             }
             this.drawTitle();
             this.drawLogo();
@@ -241,13 +241,13 @@ public class GridEditor extends JmUI
     protected void func_146284_a(final GuiButton guibutton) {
         try {
             if (guibutton == this.buttonDay) {
-                this.updatePreview(MapType.day(0));
+                this.updatePreview(MapView.day(0));
             }
             else if (guibutton == this.buttonNight) {
-                this.updatePreview(MapType.night(0));
+                this.updatePreview(MapView.night(0));
             }
             else if (guibutton == this.buttonUnderground) {
-                this.updatePreview(MapType.underground(0, 0));
+                this.updatePreview(MapView.underground(0, 0));
             }
             this.updateGridSpecs();
             if (guibutton == this.buttonReset) {
@@ -268,18 +268,18 @@ public class GridEditor extends JmUI
         }
     }
     
-    protected void updatePreview(final MapType mapType) {
-        this.activeMapType = mapType;
+    protected void updatePreview(final MapView mapView) {
+        this.activeMapType = mapView;
         final GridSpec activeSpec = this.gridSpecs.getSpec(this.activeMapType);
         this.activeColor = activeSpec.getColor();
         this.buttonOpacity.setValue((int)(activeSpec.alpha * 100.0f));
         this.buttonStyle.setValue(activeSpec.style);
-        this.checkDay.setToggled(mapType.isDay());
-        this.checkNight.setToggled(mapType.isNight());
-        this.checkUnderground.setToggled(mapType.isUnderground());
-        this.buttonDay.setToggled(mapType.isDay());
-        this.buttonNight.setToggled(mapType.isNight());
-        this.buttonUnderground.setToggled(mapType.isUnderground());
+        this.checkDay.setToggled(mapView.isDay());
+        this.checkNight.setToggled(mapView.isNight());
+        this.checkUnderground.setToggled(mapView.isUnderground());
+        this.buttonDay.setToggled(mapView.isDay());
+        this.buttonNight.setToggled(mapView.isNight());
+        this.buttonUnderground.setToggled(mapView.isUnderground());
     }
     
     protected void updateGridSpecs() {
@@ -288,13 +288,13 @@ public class GridEditor extends JmUI
         final int colorY = activeSpec.getColorY();
         final GridSpec newSpec = new GridSpec(this.buttonStyle.getField().get(), new Color(this.activeColor), this.buttonOpacity.getValue() / 100.0f).setColorCoords(colorX, colorY);
         if (this.checkDay.getToggled()) {
-            this.gridSpecs.setSpec(MapType.day(0), newSpec);
+            this.gridSpecs.setSpec(MapView.day(0), newSpec);
         }
         if (this.checkNight.getToggled()) {
-            this.gridSpecs.setSpec(MapType.night(0), newSpec);
+            this.gridSpecs.setSpec(MapView.night(0), newSpec);
         }
         if (this.checkUnderground.getToggled()) {
-            this.gridSpecs.setSpec(MapType.underground(0, 0), newSpec);
+            this.gridSpecs.setSpec(MapView.underground(0, 0), newSpec);
         }
     }
     
@@ -307,13 +307,13 @@ public class GridEditor extends JmUI
     
     protected void resetGridSpecs() {
         if (this.checkDay.getToggled()) {
-            this.gridSpecs.setSpec(MapType.day(0), GridSpecs.DEFAULT_DAY.clone());
+            this.gridSpecs.setSpec(MapView.day(0), GridSpecs.DEFAULT_DAY.clone());
         }
         if (this.checkNight.getToggled()) {
-            this.gridSpecs.setSpec(MapType.night(0), GridSpecs.DEFAULT_NIGHT.clone());
+            this.gridSpecs.setSpec(MapView.night(0), GridSpecs.DEFAULT_NIGHT.clone());
         }
         if (this.checkUnderground.getToggled()) {
-            this.gridSpecs.setSpec(MapType.underground(0, 0), GridSpecs.DEFAULT_UNDERGROUND.clone());
+            this.gridSpecs.setSpec(MapView.underground(0, 0), GridSpecs.DEFAULT_UNDERGROUND.clone());
         }
         this.field_146292_n.clear();
         this.func_73866_w_();
@@ -329,11 +329,11 @@ public class GridEditor extends JmUI
         }
     }
     
-    public TextureImpl getTileSample(final MapType mapType) {
-        if (mapType.isNight()) {
+    public TextureImpl getTileSample(final MapView mapView) {
+        if (mapView.isNight()) {
             return TextureCache.getTexture(TextureCache.TileSampleNight);
         }
-        if (mapType.isUnderground()) {
+        if (mapView.isUnderground()) {
             return TextureCache.getTexture(TextureCache.TileSampleUnderground);
         }
         return TextureCache.getTexture(TextureCache.TileSampleDay);

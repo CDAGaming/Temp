@@ -13,14 +13,14 @@ import journeymap.client.data.*;
 import journeymap.client.*;
 import net.minecraft.util.math.*;
 import journeymap.client.api.model.*;
+import journeymap.common.api.feature.*;
 import java.util.*;
+import journeymap.client.model.*;
 import journeymap.common.*;
 import journeymap.client.io.nbt.*;
-import journeymap.client.feature.*;
 import journeymap.client.ui.fullscreen.*;
 import journeymap.client.log.*;
 import journeymap.common.log.*;
-import journeymap.client.model.*;
 import journeymap.client.api.display.*;
 import java.text.*;
 
@@ -29,19 +29,19 @@ public class MapRegionTask extends BaseMapTask
     private static final int MAX_RUNTIME = 30000;
     private static final Logger logger;
     private static volatile long lastTaskCompleted;
-    public static MapType MAP_TYPE;
+    public static MapView MAP_VIEW;
     final PolygonOverlay regionOverlay;
     final RegionCoord rCoord;
     final Collection<ChunkPos> retainedCoords;
     
-    private MapRegionTask(final ChunkRenderController renderController, final World world, final MapType mapType, final RegionCoord rCoord, final Collection<ChunkPos> chunkCoords, final Collection<ChunkPos> retainCoords) {
-        super(renderController, world, mapType, chunkCoords, true, false, 5000);
+    private MapRegionTask(final ChunkRenderController renderController, final World world, final MapView mapView, final RegionCoord rCoord, final Collection<ChunkPos> chunkCoords, final Collection<ChunkPos> retainCoords) {
+        super(renderController, world, mapView, chunkCoords, true, false, 5000);
         this.rCoord = rCoord;
         this.retainedCoords = retainCoords;
         this.regionOverlay = this.createOverlay();
     }
     
-    public static BaseMapTask create(final ChunkRenderController renderController, final RegionCoord rCoord, final MapType mapType, final Minecraft minecraft) {
+    public static BaseMapTask create(final ChunkRenderController renderController, final RegionCoord rCoord, final MapView mapView, final Minecraft minecraft) {
         final World world = (World)minecraft.field_71441_e;
         final List<ChunkPos> renderCoords = rCoord.getChunkCoordsInRegion();
         final List<ChunkPos> retainedCoords = new ArrayList<ChunkPos>(renderCoords.size());
@@ -49,7 +49,7 @@ public class MapRegionTask extends BaseMapTask
         for (final ChunkPos coord : renderCoords) {
             for (final ChunkPos keepAliveOffset : MapRegionTask.keepAliveOffsets) {
                 final ChunkPos keepAliveCoord = new ChunkPos(coord.field_77276_a + keepAliveOffset.field_77276_a, coord.field_77275_b + keepAliveOffset.field_77275_b);
-                final RegionCoord neighborRCoord = RegionCoord.fromChunkPos(rCoord.worldDir, mapType, keepAliveCoord.field_77276_a, keepAliveCoord.field_77275_b);
+                final RegionCoord neighborRCoord = RegionCoord.fromChunkPos(rCoord.worldDir, mapView, keepAliveCoord.field_77276_a, keepAliveCoord.field_77275_b);
                 if (!existingRegions.containsKey(neighborRCoord)) {
                     existingRegions.put(neighborRCoord, neighborRCoord.exists());
                 }
@@ -58,7 +58,7 @@ public class MapRegionTask extends BaseMapTask
                 }
             }
         }
-        return new MapRegionTask(renderController, world, mapType, rCoord, renderCoords, retainedCoords);
+        return new MapRegionTask(renderController, world, mapView, rCoord, renderCoords, retainedCoords);
     }
     
     @Override
@@ -115,7 +115,7 @@ public class MapRegionTask extends BaseMapTask
         final BlockPos nw = new BlockPos(x, y, z);
         final MapPolygon polygon = new MapPolygon(new BlockPos[] { sw, se, ne, nw });
         final PolygonOverlay regionOverlay = new PolygonOverlay("journeymap", displayId, this.rCoord.dimension, shapeProps, polygon);
-        regionOverlay.setOverlayGroupName(groupName).setLabel(label).setTextProperties(textProps).setActiveUIs(EnumSet.of(Context.UI.Fullscreen, Context.UI.Webmap)).setActiveMapTypes(EnumSet.of(Context.MapType.Any));
+        regionOverlay.setOverlayGroupName(groupName).setLabel(label).setTextProperties(textProps).setActiveUIs(EnumSet.of(Feature.Display.Fullscreen, Feature.Display.Webmap)).setActiveMapTypes(EnumSet.allOf(Feature.MapType.class));
         return regionOverlay;
     }
     
@@ -169,13 +169,6 @@ public class MapRegionTask extends BaseMapTask
         
         @Override
         public boolean enableTask(final Minecraft minecraft, final Object params) {
-            final EntityDTO player = DataCache.getPlayer();
-            final boolean cavesAllowed = FeatureManager.isAllowed(Feature.MapCaves);
-            final boolean underground = player.underground;
-            if (underground && !cavesAllowed) {
-                MapRegionTask.logger.info("Cave mapping not permitted.");
-                return false;
-            }
             if (!(this.enabled = (params != null))) {
                 return false;
             }
@@ -185,17 +178,26 @@ public class MapRegionTask extends BaseMapTask
             this.enabled = false;
             if (minecraft.func_71387_A()) {
                 try {
-                    MapType mapType = MapRegionTask.MAP_TYPE;
-                    if (mapType == null) {
-                        mapType = Fullscreen.state().getMapType();
+                    MapView mapView = MapRegionTask.MAP_VIEW;
+                    if (mapView == null) {
+                        mapView = Fullscreen.state().getMapView();
                     }
-                    final Boolean mapAll = params != null && (boolean)params;
-                    this.regionLoader = new RegionLoader(minecraft, mapType, mapAll);
-                    if (this.regionLoader.getRegionsFound() == 0) {
-                        this.disableTask(minecraft);
+                    if (mapView == null || mapView.isNone()) {
+                        return false;
+                    }
+                    if (mapView.isAllowed()) {
+                        final Boolean mapAll = (Boolean)params;
+                        this.regionLoader = new RegionLoader(minecraft, mapView, mapAll);
+                        if (this.regionLoader.getRegionsFound() == 0) {
+                            this.disableTask(minecraft);
+                        }
+                        else {
+                            this.enabled = true;
+                        }
                     }
                     else {
-                        this.enabled = true;
+                        final String error = "Not allowed to Auto-Map: " + mapView;
+                        ChatLog.announceError(error);
                     }
                 }
                 catch (Throwable t) {

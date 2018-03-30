@@ -106,7 +106,7 @@ public class BlockInfoLayer implements LayerDelegate.Layer
             final Theme theme = ThemeLoader.getCurrentTheme();
             this.labelSpec = theme.fullscreen.statusLabel;
             if (this.prefix == null) {
-                this.prefix = BlockInfoLayer.this.mc.field_71439_g.func_70005_c_() + " \u25a0 ";
+                this.prefix = Journeymap.clientPlayer().getDisplayNameString() + " \u25a0 ";
             }
             this.x = x;
             this.y = y + theme.container.toolbar.horizontal.margin * BlockInfoLayer.this.fullscreen.getScreenScaleFactor();

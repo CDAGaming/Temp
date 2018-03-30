@@ -1,6 +1,6 @@
 package journeymap.client.render.draw;
 
-import net.minecraftforge.fml.client.*;
+import journeymap.client.ui.component.*;
 import net.minecraft.client.gui.*;
 import journeymap.client.ui.theme.*;
 import net.minecraft.client.renderer.*;
@@ -42,7 +42,7 @@ public class DrawUtil
             drawLabel(lines[0], x, y, hAlign, vAlign, bgColor, bgAlpha, color, alpha, fontScale, fontShadow, rotation);
             return;
         }
-        final FontRenderer fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
+        final FontRenderer fontRenderer = JmUI.fontRenderer();
         final double vpad = fontRenderer.func_82883_a() ? 0.0 : (fontShadow ? 6.0 : 4.0);
         final double lineHeight = fontRenderer.field_78288_b * fontScale;
         double bgHeight = lineHeight * lines.length + vpad;
@@ -83,7 +83,7 @@ public class DrawUtil
         double bgWidth = 0.0;
         double bgHeight = 0.0;
         if (bgColor != null && bgAlpha > 0.0f) {
-            final FontRenderer fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
+            final FontRenderer fontRenderer = JmUI.fontRenderer();
             bgWidth = fontRenderer.func_78256_a(text);
             bgHeight = getLabelHeight(fontRenderer, fontShadow);
         }
@@ -94,7 +94,7 @@ public class DrawUtil
         if (text == null || text.length() == 0) {
             return;
         }
-        final FontRenderer fontRenderer = FMLClientHandler.instance().getClient().field_71466_p;
+        final FontRenderer fontRenderer = JmUI.fontRenderer();
         final boolean drawRect = bgColor != null && bgAlpha > 0.0f;
         final double width = fontRenderer.func_78256_a(text);
         int height = drawRect ? getLabelHeight(fontRenderer, fontShadow) : fontRenderer.field_78288_b;
@@ -158,6 +158,9 @@ public class DrawUtil
             }
             if (alpha < 1.0f) {
                 color = RGB.toArbg(color, alpha);
+            }
+            if (color == null) {
+                color = 16777215;
             }
             GlStateManager.func_179137_b(textX - Math.floor(textX), textY - Math.floor(textY), 0.0);
             fontRenderer.func_175065_a(text, textX, textY, (int)color, fontShadow);

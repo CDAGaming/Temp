@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import java.util.concurrent.*;
 import modinfo.*;
-import org.apache.logging.log4j.*;
 
 public class Client
 {
@@ -62,7 +61,7 @@ public class Client
                     result = message.call();
                 }
                 catch (Throwable t) {
-                    ModInfo.LOGGER.log(Level.ERROR, "ModInfo couldn't send message", t);
+                    ModInfo.LOGGER.error("ModInfo couldn't send message", t);
                 }
                 try {
                     if (Client.this.config.isVerbose() && Boolean.TRUE.equals(result)) {
@@ -70,7 +69,7 @@ public class Client
                     }
                 }
                 catch (Throwable t) {
-                    ModInfo.LOGGER.log(Level.ERROR, "ModInfo couldn't do verbose output", t);
+                    ModInfo.LOGGER.error("ModInfo couldn't do verbose output", t);
                 }
                 try {
                     if (callback != null) {
@@ -78,7 +77,7 @@ public class Client
                     }
                 }
                 catch (Throwable t) {
-                    ModInfo.LOGGER.log(Level.ERROR, "ModInfo couldn't use callback", t);
+                    ModInfo.LOGGER.error("ModInfo couldn't use callback", t);
                 }
             }
         };
@@ -121,7 +120,7 @@ public class Client
             }
         }
         catch (Throwable t) {
-            ModInfo.LOGGER.log(Level.ERROR, "ModInfo couldn't create useragent string", t);
+            ModInfo.LOGGER.error("ModInfo couldn't create useragent string", t);
             agent = "Mozilla/5.0 (Unknown)";
         }
         return agent;

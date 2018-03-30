@@ -1,13 +1,16 @@
 package journeymap.client.ui.fullscreen.layer;
 
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import net.minecraft.client.*;
 import journeymap.client.render.map.*;
 import java.awt.geom.*;
+import journeymap.common.*;
 import net.minecraft.util.math.*;
-import journeymap.client.data.*;
-import journeymap.client.ui.*;
+import journeymap.client.waypoint.*;
 import journeymap.client.ui.fullscreen.*;
+import net.minecraft.world.*;
+import net.minecraft.client.entity.*;
+import journeymap.client.ui.*;
 import journeymap.client.ui.component.*;
 import java.util.*;
 import org.lwjgl.input.*;
@@ -35,9 +38,6 @@ public class WaypointLayer implements LayerDelegate.Layer
     @Override
     public List<DrawStep> onMouseMove(final Minecraft mc, final GridRenderer gridRenderer, final Point2D.Double mousePosition, final BlockPos blockCoord, final float fontScale, final boolean isScrolling) {
         this.drawStepList.clear();
-        if (!WaypointsData.isManagerEnabled()) {
-            return this.drawStepList;
-        }
         if (this.lastCoord == null) {
             this.lastCoord = blockCoord;
         }
@@ -49,7 +49,8 @@ public class WaypointLayer implements LayerDelegate.Layer
         else {
             this.drawStepList.add(this.clickDrawStep);
         }
-        final AxisAlignedBB area = new AxisAlignedBB((double)(blockCoord.func_177958_n() - proximity), -1.0, (double)(blockCoord.func_177952_p() - proximity), (double)(blockCoord.func_177958_n() + proximity), (double)(mc.field_71441_e.func_72940_L() + 1), (double)(blockCoord.func_177952_p() + proximity));
+        final World world = Journeymap.clientWorld();
+        final AxisAlignedBB area = new AxisAlignedBB((double)(blockCoord.func_177958_n() - proximity), -1.0, (double)(blockCoord.func_177952_p() - proximity), (double)(blockCoord.func_177958_n() + proximity), (double)(world.func_72940_L() + 1), (double)(blockCoord.func_177952_p() + proximity));
         if (!this.lastCoord.equals((Object)blockCoord)) {
             if (!area.func_72318_a(new Vec3d((double)this.lastCoord.func_177958_n(), 1.0, (double)this.lastCoord.func_177952_p()))) {
                 this.selected = null;
@@ -65,11 +66,13 @@ public class WaypointLayer implements LayerDelegate.Layer
         if (now - this.startHover < 100L) {
             return this.drawStepList;
         }
-        final int dimension = mc.field_71439_g.field_71093_bK;
-        final Collection<Waypoint> waypoints = DataCache.INSTANCE.getWaypoints(false);
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        final int dimension = player.field_71093_bK;
+        final Collection<Waypoint> waypoints = WaypointStore.INSTANCE.getAll(dimension);
         final ArrayList<Waypoint> proximal = new ArrayList<Waypoint>();
+        final int dim = Fullscreen.state().getDimension();
         for (final Waypoint waypoint : waypoints) {
-            if (waypoint.isEnable() && waypoint.isInPlayerDimension() && area.func_72318_a(new Vec3d((double)waypoint.getX(), (double)waypoint.getY(), (double)waypoint.getZ()))) {
+            if (waypoint.isDisplayed(dim) && area.func_72318_a(waypoint.getVec(dim))) {
                 proximal.add(waypoint);
             }
         }
@@ -84,9 +87,6 @@ public class WaypointLayer implements LayerDelegate.Layer
     
     @Override
     public List<DrawStep> onMouseClick(final Minecraft mc, final GridRenderer gridRenderer, final Point2D.Double mousePosition, final BlockPos blockCoord, final int button, final boolean doubleClick, final float fontScale) {
-        if (!WaypointsData.isManagerEnabled()) {
-            return this.drawStepList;
-        }
         if (!this.drawStepList.contains(this.clickDrawStep)) {
             this.drawStepList.add(this.clickDrawStep);
         }
@@ -113,8 +113,9 @@ public class WaypointLayer implements LayerDelegate.Layer
             }
             
             private double getDistance(final Waypoint waypoint) {
-                final double dx = waypoint.getX() - blockCoord.func_177958_n();
-                final double dz = waypoint.getZ() - blockCoord.func_177952_p();
+                final BlockPos pos = waypoint.getPosition(dimension);
+                final double dx = pos.func_177958_n() - blockCoord.func_177958_n();
+                final double dz = pos.func_177952_p() - blockCoord.func_177952_p();
                 return Math.sqrt(dx * dx + dz * dz);
             }
         });
@@ -122,7 +123,7 @@ public class WaypointLayer implements LayerDelegate.Layer
     
     private void select(final Waypoint waypoint) {
         this.selected = waypoint;
-        this.selectedWaypointStep = new DrawWayPointStep(waypoint, waypoint.getColor(), 16777215, true);
+        this.selectedWaypointStep = new DrawWayPointStep(waypoint, true);
         this.drawStepList.add(this.selectedWaypointStep);
     }
     

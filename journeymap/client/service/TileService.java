@@ -3,8 +3,9 @@ package journeymap.client.service;
 import net.minecraftforge.fml.client.*;
 import journeymap.common.*;
 import java.util.*;
+import journeymap.common.api.feature.*;
 import journeymap.client.model.*;
-import journeymap.client.data.*;
+import journeymap.client.feature.*;
 import journeymap.client.io.*;
 import net.minecraft.util.math.*;
 import java.awt.image.*;
@@ -49,19 +50,20 @@ public class TileService extends FileService
             Integer vSlice = this.getParameter(query, "depth", (Integer)null);
             final int z = this.getParameter(query, "z", Integer.valueOf(0));
             final int dimension = this.getParameter(query, "dim", Integer.valueOf(0));
-            final String mapTypeString = this.getParameter(query, "mapType", MapType.Name.day.name());
-            MapType.Name mapTypeName = null;
+            final String mapTypeString = this.getParameter(query, "mapType", Feature.MapType.Day.name());
+            Feature.MapType mapType = null;
             try {
-                mapTypeName = MapType.Name.valueOf(mapTypeString);
+                mapType = Feature.MapType.valueOf(mapTypeString);
             }
             catch (Exception e) {
                 final String error = "Bad request: mapType=" + mapTypeString;
                 this.throwEventException(400, error, event, true);
             }
-            if (mapTypeName != MapType.Name.underground) {
+            if (mapType != Feature.MapType.Underground) {
                 vSlice = null;
             }
-            if (mapTypeName == MapType.Name.underground && WorldData.isHardcoreAndMultiplayer()) {
+            final MapView mapView = MapView.from(mapType, vSlice, dimension);
+            if (!mapView.isAllowed() || !ClientFeatures.instance().isAllowed(Feature.Display.Webmap, dimension)) {
                 ResponseHeader.on(event).contentType(ContentType.png).noCache();
                 this.serveFile(RegionImageHandler.getBlank512x512ImageFile(), event);
             }
@@ -75,8 +77,7 @@ public class TileService extends FileService
                 final ChunkPos startCoord = new ChunkPos(minChunkX, minChunkZ);
                 final ChunkPos endCoord = new ChunkPos(maxChunkX, maxChunkZ);
                 final boolean showGrid = Journeymap.getClient().getWebMapProperties().showGrid.get();
-                final MapType mapType = new MapType(mapTypeName, vSlice, dimension);
-                final BufferedImage img = RegionImageHandler.getMergedChunks(worldDir, startCoord, endCoord, mapType, true, null, 512, 512, false, showGrid);
+                final BufferedImage img = RegionImageHandler.getMergedChunks(worldDir, startCoord, endCoord, mapView, true, null, 512, 512, false, showGrid);
                 ResponseHeader.on(event).contentType(ContentType.png).noCache();
                 this.serveImage(event, img);
             }

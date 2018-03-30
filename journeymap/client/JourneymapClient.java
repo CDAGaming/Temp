@@ -1,32 +1,35 @@
 package journeymap.client;
 
 import net.minecraftforge.fml.relauncher.*;
+import net.minecraftforge.fml.common.discovery.*;
 import journeymap.client.properties.*;
 import journeymap.client.cartography.*;
+import net.minecraft.world.*;
+import net.minecraftforge.fml.client.*;
 import journeymap.client.forge.event.*;
+import journeymap.client.api.impl.*;
 import journeymap.client.data.*;
 import journeymap.client.api.util.*;
 import journeymap.common.network.*;
 import journeymap.common.migrate.*;
 import net.minecraftforge.fml.common.registry.*;
-import journeymap.client.api.*;
+import journeymap.common.api.*;
 import org.apache.logging.log4j.*;
 import journeymap.common.log.*;
 import journeymap.client.task.main.*;
 import journeymap.client.service.*;
 import journeymap.common.version.*;
 import modinfo.*;
-import java.util.*;
 import net.minecraftforge.fml.common.event.*;
-import journeymap.client.api.impl.*;
-import net.minecraftforge.fml.common.*;
+import journeymap.common.command.*;
+import net.minecraft.command.*;
+import journeymap.server.*;
+import java.util.*;
 import journeymap.client.task.multi.*;
-import net.minecraftforge.fml.client.*;
 import journeymap.client.io.*;
 import java.io.*;
 import journeymap.client.ui.*;
 import net.minecraft.client.*;
-import journeymap.client.world.*;
 import journeymap.client.model.*;
 import journeymap.client.cartography.color.*;
 import journeymap.client.network.*;
@@ -36,6 +39,8 @@ import journeymap.client.waypoint.*;
 import journeymap.client.log.*;
 import net.minecraft.entity.player.*;
 import journeymap.common.*;
+import net.minecraft.client.multiplayer.*;
+import net.minecraft.client.entity.*;
 
 @SideOnly(Side.CLIENT)
 public class JourneymapClient implements CommonProxy
@@ -43,7 +48,7 @@ public class JourneymapClient implements CommonProxy
     public static final String FULL_VERSION;
     public static final String MOD_NAME;
     private boolean serverEnabled;
-    private boolean serverTeleportEnabled;
+    public volatile ASMDataTable asmDataTable;
     private volatile CoreProperties coreProperties;
     private volatile FullMapProperties fullMapProperties;
     private volatile MiniMapProperties miniMapProperties1;
@@ -61,11 +66,14 @@ public class JourneymapClient implements CommonProxy
     
     public JourneymapClient() {
         this.serverEnabled = false;
-        this.serverTeleportEnabled = false;
         this.initialized = false;
         this.currentWorldId = null;
         this.threadLogging = false;
         this.mainThreadTaskController = new MainTaskController();
+    }
+    
+    public static GameType getGameType() {
+        return FMLClientHandler.instance().getClient().field_71442_b.func_178889_l();
     }
     
     public CoreProperties getCoreProperties() {
@@ -129,7 +137,8 @@ public class JourneymapClient implements CommonProxy
     @Override
     public void preInitialize(final FMLPreInitializationEvent event) throws Throwable {
         try {
-            PluginHelper.INSTANCE.preInitPlugins(event);
+            this.asmDataTable = event.getAsmData();
+            ClientPluginHelper.instance().preInitPlugins(this.asmDataTable);
         }
         catch (Throwable t) {
             t.printStackTrace();
@@ -151,8 +160,9 @@ public class JourneymapClient implements CommonProxy
             EntityRegistry.instance();
             this.loadConfigProperties();
             JMLogger.logProperties();
+            EventHandlerManager.registerHandlers();
             this.threadLogging = false;
-            PluginHelper.INSTANCE.initPlugins(event, ClientAPI.INSTANCE);
+            ClientPluginHelper.instance().initPlugins(ClientAPI.INSTANCE);
             this.logger.info("initialize EXIT, " + ((timer == null) ? "" : timer.getLogReportString()));
         }
         catch (Throwable t) {
@@ -171,8 +181,6 @@ public class JourneymapClient implements CommonProxy
             this.logger.debug("postInitialize ENTER");
             timer = StatTimer.getDisposable("elapsed").start();
             this.queueMainThreadTask(new MappingMonitorTask());
-            EventHandlerManager.registerHandlers();
-            IconSetFileHandler.initialize();
             ThemeLoader.initialize(true);
             WebServer.setEnabled(this.webMapProperties.enabled.get(), false);
             this.initialized = true;
@@ -193,6 +201,15 @@ public class JourneymapClient implements CommonProxy
     }
     
     @Override
+    public void serverStartingEvent(final FMLServerStartingEvent event) throws Throwable {
+        event.registerServerCommand((ICommand)new CommandJTP());
+        if (!event.getServer().func_71262_S() && this.asmDataTable != null) {
+            JourneymapServer.preInitialize(this.asmDataTable);
+            JourneymapServer.initialize();
+        }
+    }
+    
+    @Override
     public boolean checkModLists(final Map<String, String> modList, final Side side) {
         return true;
     }
@@ -200,11 +217,6 @@ public class JourneymapClient implements CommonProxy
     @Override
     public boolean isUpdateCheckEnabled() {
         return this.getCoreProperties().checkUpdates.get();
-    }
-    
-    @Mod.EventHandler
-    public void handleIMC(final FMLInterModComms.IMCEvent event) {
-        IMCHandler.handle(event);
     }
     
     public Boolean isInitialized() {
@@ -246,7 +258,7 @@ public class JourneymapClient implements CommonProxy
     public void startMapping() {
         synchronized (this) {
             final Minecraft mc = FMLClientHandler.instance().getClient();
-            if (mc == null || mc.field_71441_e == null || !this.initialized || !this.coreProperties.mappingEnabled.get()) {
+            if (mc == null || this.world() == null || !this.initialized || !this.coreProperties.mappingEnabled.get()) {
                 return;
             }
             final File worldDir = FileHandler.getJMWorldDir(mc, this.currentWorldId);
@@ -265,7 +277,7 @@ public class JourneymapClient implements CommonProxy
             final long totalMB = Runtime.getRuntime().totalMemory() / 1024L / 1024L;
             final long freeMB = Runtime.getRuntime().freeMemory() / 1024L / 1024L;
             final String memory = String.format("Memory: %sMB total, %sMB free", totalMB, freeMB);
-            final int dimension = mc.field_71441_e.field_73011_w.getDimension();
+            final int dimension = this.world().field_73011_w.getDimension();
             this.logger.info(String.format("Mapping started in %s%sDIM%s. %s ", FileHandler.getJMWorldDir(mc, this.currentWorldId), File.separator, dimension, memory));
             ClientAPI.INSTANCE.getClientEventManager().fireMappingEvent(true, dimension);
             UIManager.INSTANCE.getMiniMap().reset();
@@ -274,10 +286,10 @@ public class JourneymapClient implements CommonProxy
     
     public void stopMapping() {
         synchronized (this) {
-            ChunkMonitor.INSTANCE.reset();
+            DataCache.INSTANCE.invalidateChunkMDCache();
             final Minecraft mc = FMLClientHandler.instance().getClient();
             if (this.isMapping() && mc != null) {
-                this.logger.info(String.format("Mapping halted in %s%sDIM%s", FileHandler.getJMWorldDir(mc, this.currentWorldId), File.separator, mc.field_71441_e.field_73011_w.getDimension()));
+                this.logger.info(String.format("Mapping halted in %s%sDIM%s", FileHandler.getJMWorldDir(mc, this.currentWorldId), File.separator, this.world().field_73011_w.getDimension()));
                 RegionImageCache.INSTANCE.flushToDiskAsync(true);
                 final ColorPalette colorPalette = ColorPalette.getActiveColorPalette();
                 if (colorPalette != null) {
@@ -290,7 +302,7 @@ public class JourneymapClient implements CommonProxy
                 this.multithreadTaskController = null;
             }
             if (mc != null) {
-                final int dimension = (mc.field_71441_e != null) ? mc.field_71441_e.field_73011_w.getDimension() : 0;
+                final int dimension = (this.world() != null) ? this.world().field_73011_w.getDimension() : 0;
                 ClientAPI.INSTANCE.getClientEventManager().fireMappingEvent(false, dimension);
             }
         }
@@ -302,7 +314,6 @@ public class JourneymapClient implements CommonProxy
         }
         this.loadConfigProperties();
         DataCache.INSTANCE.purge();
-        ChunkMonitor.INSTANCE.reset();
         this.chunkRenderController = new ChunkRenderController();
         Fullscreen.state().requireRefresh();
         Fullscreen.state().follow.set(true);
@@ -415,12 +426,12 @@ public class JourneymapClient implements CommonProxy
         this.serverEnabled = serverEnabled;
     }
     
-    public boolean isServerTeleportEnabled() {
-        return this.serverTeleportEnabled;
+    public WorldClient world() {
+        return FMLClientHandler.instance().getClient().field_71441_e;
     }
     
-    public void setServerTeleportEnabled(final boolean serverTeleportEnabled) {
-        this.serverTeleportEnabled = serverTeleportEnabled;
+    public EntityPlayerSP player() {
+        return FMLClientHandler.instance().getClient().field_71439_g;
     }
     
     static {

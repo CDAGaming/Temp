@@ -32,7 +32,7 @@ public class DrawImageStep extends BaseOverlayDrawStep<ImageOverlay>
                 final MapImage icon = ((ImageOverlay)this.overlay).getImage();
                 final double width = this.screenBounds.width;
                 final double height = this.screenBounds.height;
-                DrawUtil.drawColoredSprite(this.iconTexture, width, height, 0.0, 0.0, icon.getDisplayWidth(), icon.getDisplayHeight(), icon.getColor(), icon.getOpacity(), this.northWestPosition.x + xOffset, this.northWestPosition.y + yOffset, 1.0f, icon.getRotation());
+                DrawUtil.drawColoredSprite(this.iconTexture, width, height, icon.getTextureX(), icon.getTextureY(), icon.getDisplayWidth(), icon.getDisplayHeight(), icon.getColor(), icon.getOpacity(), this.northWestPosition.x + xOffset, this.northWestPosition.y + yOffset, 1.0f, icon.getRotation());
             }
         }
         else {

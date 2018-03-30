@@ -1,64 +1,86 @@
 package journeymap.client.waypoint;
 
-import com.google.gson.*;
-import com.google.common.cache.*;
-import journeymap.client.io.*;
-import java.io.*;
-import java.nio.charset.*;
-import com.google.common.io.*;
-import journeymap.common.*;
-import journeymap.common.log.*;
-import journeymap.client.model.*;
-import com.google.common.base.*;
 import javax.annotation.*;
-import com.google.common.collect.*;
+import journeymap.client.api.model.*;
+import com.google.common.cache.*;
+import net.minecraft.util.math.*;
+import journeymap.client.cartography.color.*;
+import journeymap.common.*;
+import journeymap.client.io.*;
+import java.util.stream.*;
+import journeymap.client.api.display.*;
 import java.util.*;
+import java.io.*;
+import journeymap.common.log.*;
+import journeymap.client.render.texture.*;
 
 @ParametersAreNonnullByDefault
 public enum WaypointStore
 {
     INSTANCE;
     
-    private final Gson gson;
+    public static final MapImage DEFAULT_WAYPOINT_ICON;
+    public static final MapText DEFAULT_WAYPOINT_LABEL;
     private final Cache<String, Waypoint> cache;
-    private final Cache<Long, Waypoint> groupCache;
     private final Set<Integer> dimensions;
     private boolean loaded;
+    private IWaypointLoader waypointLoader;
     
     private WaypointStore() {
-        this.gson = new GsonBuilder().setPrettyPrinting().create();
         this.cache = (Cache<String, Waypoint>)CacheBuilder.newBuilder().build();
-        this.groupCache = (Cache<Long, Waypoint>)CacheBuilder.newBuilder().build();
         this.dimensions = new HashSet<Integer>();
         this.loaded = false;
     }
     
-    private boolean writeToFile(final Waypoint waypoint) {
-        if (waypoint.isPersistent()) {
-            File waypointFile = null;
-            try {
-                waypointFile = new File(FileHandler.getWaypointDir(), waypoint.getFileName());
-                Files.write((CharSequence)this.gson.toJson((Object)waypoint), waypointFile, Charset.forName("UTF-8"));
-                return true;
-            }
-            catch (Exception e) {
-                Journeymap.getLogger().error(String.format("Can't save waypoint file %s: %s", waypointFile, LogFormatter.toString(e)));
-                return false;
-            }
+    public static MapImage getWaypointIcon(final Waypoint waypoint) {
+        MapImage icon = waypoint.getIcon();
+        if (icon == null || icon.getImageLocation() == null) {
+            icon = WaypointStore.DEFAULT_WAYPOINT_ICON;
         }
-        return false;
+        return icon;
     }
     
-    public Collection<Waypoint> getAll() {
-        return (Collection<Waypoint>)this.cache.asMap().values();
+    public static MapText getWaypointLabel(final Waypoint waypoint) {
+        final MapText label = waypoint.getLabel();
+        return (label == null) ? WaypointStore.DEFAULT_WAYPOINT_LABEL : label;
     }
     
-    public Collection<Waypoint> getAll(final WaypointGroup group) {
-        return Maps.filterEntries((Map)this.cache.asMap(), (Predicate)new Predicate<Map.Entry<String, Waypoint>>() {
-            public boolean apply(@Nullable final Map.Entry<String, Waypoint> input) {
-                return input != null && Objects.equals(group, input.getValue().getGroup());
-            }
-        }).values();
+    public static Waypoint create(final int dimension, final BlockPos position) {
+        final int color = RGB.randomColor();
+        final String name = String.format("%s, %s", position.func_177958_n(), position.func_177952_p());
+        return new Waypoint("journeymap", name, dimension, position).setIconColor(color).setLabelColor(RGB.labelSafe(color));
+    }
+    
+    static String getFileName(final Waypoint waypoint) {
+        String fileName = waypoint.getGuid().toLowerCase().replaceAll("[\\\\/:\"*?<>|]", "_").concat(".json");
+        if (fileName.equals("waypoint_groups.json")) {
+            fileName = "bad" + fileName;
+            Journeymap.getLogger().error("Waypoint file can't be waypoint_groups.json");
+        }
+        return fileName;
+    }
+    
+    private IWaypointLoader getWaypointLoader() {
+        if (this.waypointLoader == null) {
+            this.waypointLoader = new WaypointLoader(FileHandler.getWaypointDir());
+        }
+        return this.waypointLoader;
+    }
+    
+    public void setWaypointLoader(final WaypointLoader loader) {
+        this.waypointLoader = loader;
+    }
+    
+    public List<Waypoint> getAll() {
+        return new ArrayList<Waypoint>(this.cache.asMap().values());
+    }
+    
+    public List<Waypoint> getAll(final int dimension) {
+        return (List<Waypoint>)this.cache.asMap().values().stream().filter(wp -> wp.isDisplayed(dimension)).collect(Collectors.toList());
+    }
+    
+    public List<Waypoint> getAll(final WaypointGroup group) {
+        return (List<Waypoint>)this.cache.asMap().values().stream().filter(waypoint -> Objects.equals(group, waypoint.getGroup())).collect(Collectors.toList());
     }
     
     public void add(final Waypoint waypoint) {
@@ -69,7 +91,7 @@ public enum WaypointStore
     
     public void save(final Waypoint waypoint) {
         this.cache.put((Object)waypoint.getId(), (Object)waypoint);
-        final boolean saved = this.writeToFile(waypoint);
+        final boolean saved = this.getWaypointLoader().save(waypoint);
         if (saved) {
             waypoint.setDirty(false);
         }
@@ -78,7 +100,7 @@ public enum WaypointStore
     public void bulkSave() {
         for (final Waypoint waypoint : this.cache.asMap().values()) {
             if (waypoint.isDirty()) {
-                final boolean saved = this.writeToFile(waypoint);
+                final boolean saved = this.getWaypointLoader().save(waypoint);
                 if (!saved) {
                     continue;
                 }
@@ -90,7 +112,7 @@ public enum WaypointStore
     public void remove(final Waypoint waypoint) {
         this.cache.invalidate((Object)waypoint.getId());
         if (waypoint.isPersistent()) {
-            final File waypointFile = new File(FileHandler.getWaypointDir(), waypoint.getFileName());
+            final File waypointFile = new File(FileHandler.getWaypointDir(), getFileName(waypoint));
             if (waypointFile.exists()) {
                 this.remove(waypointFile);
             }
@@ -111,20 +133,16 @@ public enum WaypointStore
         this.cache.invalidateAll();
         this.dimensions.clear();
         this.loaded = false;
-        if (Journeymap.getClient().getWaypointProperties().managerEnabled.get()) {
-            this.load();
-        }
+        this.load();
     }
     
     private void load() {
         synchronized (this.cache) {
-            final ArrayList<Waypoint> waypoints = new ArrayList<Waypoint>();
-            File waypointDir = null;
+            final File waypointDir = FileHandler.getWaypointDir();
             try {
                 this.cache.invalidateAll();
-                waypointDir = FileHandler.getWaypointDir();
-                waypoints.addAll(new JmReader().loadWaypoints(waypointDir));
-                this.load(waypoints, false);
+                this.waypointLoader = null;
+                this.loadCache(this.getWaypointLoader().loadAll());
                 Journeymap.getLogger().info(String.format("Loaded %s waypoints from %s", this.cache.size(), waypointDir));
             }
             catch (Exception e) {
@@ -133,15 +151,15 @@ public enum WaypointStore
         }
     }
     
-    public void load(final Collection<Waypoint> waypoints, final boolean forceSave) {
+    protected void loadCache(final Collection<Waypoint> waypoints) {
         for (final Waypoint waypoint : waypoints) {
-            if (waypoint.isPersistent() && (forceSave || waypoint.isDirty())) {
+            if (waypoint.isPersistent() && waypoint.isDirty()) {
                 this.save(waypoint);
             }
             else {
                 this.cache.put((Object)waypoint.getId(), (Object)waypoint);
             }
-            this.dimensions.addAll(waypoint.getDimensions());
+            this.dimensions.addAll(waypoint.getDisplayDimensions());
         }
         this.loaded = true;
     }
@@ -152,5 +170,10 @@ public enum WaypointStore
     
     public List<Integer> getLoadedDimensions() {
         return new ArrayList<Integer>(this.dimensions);
+    }
+    
+    static {
+        DEFAULT_WAYPOINT_ICON = new MapImage(TextureCache.Waypoint, 16, 16);
+        DEFAULT_WAYPOINT_LABEL = new MapText();
     }
 }

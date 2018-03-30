@@ -2,9 +2,10 @@ package journeymap.client.api;
 
 import javax.annotation.*;
 import journeymap.client.api.event.*;
+import journeymap.common.api.*;
 
 @ParametersAreNonnullByDefault
-public interface IClientPlugin
+public interface IClientPlugin extends IJmPlugin<IClientAPI>
 {
     void initialize(final IClientAPI p0);
     

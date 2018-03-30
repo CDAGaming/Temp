@@ -3,7 +3,6 @@ package journeymap.client.ui.dialog;
 import journeymap.client.ui.*;
 import journeymap.common.*;
 import java.awt.*;
-import org.apache.logging.log4j.*;
 import journeymap.common.log.*;
 import java.io.*;
 import net.minecraft.client.*;
@@ -18,8 +17,8 @@ public class FullscreenActions
         UIManager.INSTANCE.openFullscreenMap();
     }
     
-    public static void showCaveLayers() {
-        UIManager.INSTANCE.openFullscreenMap().showCaveLayers();
+    public static void showFeatures() {
+        UIManager.INSTANCE.open(FeatureDialog.class);
     }
     
     public static void launchLocalhost() {
@@ -28,7 +27,7 @@ public class FullscreenActions
             Desktop.getDesktop().browse(URI.create(url));
         }
         catch (IOException e) {
-            Journeymap.getLogger().log(Level.ERROR, "Could not launch browser with URL: " + url + ": " + LogFormatter.toString(e));
+            Journeymap.getLogger().error(String.format("Could not launch browser with URL %s: %s", url, LogFormatter.toPartialString(e)));
         }
     }
     
@@ -38,7 +37,7 @@ public class FullscreenActions
             Desktop.getDesktop().browse(URI.create(url));
         }
         catch (IOException e) {
-            Journeymap.getLogger().log(Level.ERROR, "Could not launch browser with URL: " + url + ": " + LogFormatter.toString(e));
+            Journeymap.getLogger().error(String.format("Could not launch browser with URL %s: %s", url, LogFormatter.toPartialString(e)));
         }
     }
     
@@ -48,7 +47,7 @@ public class FullscreenActions
             Desktop.getDesktop().browse(URI.create(url));
         }
         catch (Throwable e) {
-            Journeymap.getLogger().error("Could not launch browser with URL: " + url, (Object)LogFormatter.toString(e));
+            Journeymap.getLogger().error(String.format("Could not launch browser with URL %s: %s", url, LogFormatter.toPartialString(e)));
         }
     }
     
@@ -87,7 +86,17 @@ public class FullscreenActions
             Desktop.getDesktop().browse(URI.create(url));
         }
         catch (Throwable e) {
-            Journeymap.getLogger().error("Could not launch browser with URL: " + url, (Object)LogFormatter.toString(e));
+            Journeymap.getLogger().error(String.format("Could not launch browser with URL %s: %s", url, LogFormatter.toPartialString(e)));
+        }
+    }
+    
+    public static void launchEulaViolationWebsite() {
+        final String url = "https://goo.gl/g9Ftx3";
+        try {
+            Desktop.getDesktop().browse(URI.create(url));
+        }
+        catch (Throwable e) {
+            Journeymap.getLogger().error(String.format("Could not launch browser with URL %s: %s", url, LogFormatter.toPartialString(e)));
         }
     }
 }

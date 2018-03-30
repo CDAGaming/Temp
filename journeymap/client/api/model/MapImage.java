@@ -9,6 +9,19 @@ import com.google.common.base.*;
 
 public final class MapImage
 {
+    public static final int DEFAULT_COLOR = 16777215;
+    public static final float DEFAULT_OPACITY = 1.0f;
+    public static final int DEFAUlT_TEXTURE_X = 0;
+    public static final int DEFAUlT_TEXTURE_Y = 0;
+    public static final int DEFAULT_TEXTURE_WIDTH = 1;
+    public static final int DEFAULT_ROTATION = 0;
+    public static final int DEFAULT_TEXTURE_HEIGHT = 1;
+    public static final int DEFAULT_BACKGROUND_COLOR = 0;
+    public static final float DEFAULT_BACKGROUND_OPACITY = 0.7f;
+    public static final int DEFAUlT_ANCHOR_X = 0;
+    public static final int DEFAUlT_ANCHOR_Y = 0;
+    public static final int DEFAULT_DISPLAY_WIDTH = 0;
+    public static final int DEFAULT_DISPLAY_HEIGHT = 0;
     @Since(1.1)
     private transient BufferedImage image;
     @Since(1.1)
@@ -35,6 +48,13 @@ public final class MapImage
     private Double anchorX;
     @Since(1.1)
     private Double anchorY;
+    
+    public MapImage() {
+        this.color = 16777215;
+        this.opacity = 1.0f;
+        this.textureX = 0;
+        this.textureY = 0;
+    }
     
     public MapImage(final BufferedImage image) {
         this(image, 0, 0, image.getWidth(), image.getHeight(), 16777215, 1.0f);
@@ -76,8 +96,28 @@ public final class MapImage
         this.setOpacity(opacity);
     }
     
+    public MapImage(final MapImage other) {
+        this.color = 16777215;
+        this.opacity = 1.0f;
+        this.textureX = 0;
+        this.textureY = 0;
+        this.image = other.image;
+        this.imageLocation = other.imageLocation;
+        this.color = other.color;
+        this.opacity = other.opacity;
+        this.textureX = other.textureX;
+        this.textureY = other.textureY;
+        this.textureWidth = other.textureWidth;
+        this.textureHeight = other.textureHeight;
+        this.rotation = other.rotation;
+        this.displayWidth = other.displayWidth;
+        this.displayHeight = other.displayHeight;
+        this.anchorX = other.anchorX;
+        this.anchorY = other.anchorY;
+    }
+    
     public int getColor() {
-        return this.color;
+        return (this.color == null) ? 16777215 : this.color;
     }
     
     public MapImage setColor(final int color) {
@@ -86,7 +126,7 @@ public final class MapImage
     }
     
     public float getOpacity() {
-        return this.opacity;
+        return (this.opacity == null) ? 1.0f : this.opacity;
     }
     
     public MapImage setOpacity(final float opacity) {
@@ -95,15 +135,15 @@ public final class MapImage
     }
     
     public int getTextureX() {
-        return this.textureX;
+        return (this.textureX == null) ? 0 : this.textureX;
     }
     
     public int getTextureY() {
-        return this.textureY;
+        return (this.textureY == null) ? 0 : this.textureY;
     }
     
     public double getAnchorX() {
-        return this.anchorX;
+        return (this.anchorX == null) ? 0.0 : this.anchorX;
     }
     
     public MapImage setAnchorX(final double anchorX) {
@@ -112,7 +152,7 @@ public final class MapImage
     }
     
     public double getAnchorY() {
-        return this.anchorY;
+        return (this.anchorY == null) ? 0.0 : this.anchorY;
     }
     
     public MapImage setAnchorY(final double anchorY) {
@@ -121,17 +161,17 @@ public final class MapImage
     }
     
     public MapImage centerAnchors() {
-        this.setAnchorX(this.displayWidth / 2.0);
-        this.setAnchorY(this.displayHeight / 2.0);
+        this.setAnchorX(this.getDisplayWidth() / 2.0);
+        this.setAnchorY(this.getDisplayHeight() / 2.0);
         return this;
     }
     
     public int getTextureWidth() {
-        return this.textureWidth;
+        return (this.textureWidth == null) ? 1 : this.textureWidth;
     }
     
     public int getTextureHeight() {
-        return this.textureHeight;
+        return (this.textureHeight == null) ? 1 : this.textureHeight;
     }
     
     @Nullable
@@ -145,7 +185,7 @@ public final class MapImage
     }
     
     public int getRotation() {
-        return this.rotation;
+        return (this.rotation == null) ? 0 : this.rotation;
     }
     
     public MapImage setRotation(final int rotation) {
@@ -154,7 +194,7 @@ public final class MapImage
     }
     
     public double getDisplayWidth() {
-        return this.displayWidth;
+        return (this.displayWidth == null) ? 0.0 : this.displayWidth;
     }
     
     public MapImage setDisplayWidth(final double displayWidth) {
@@ -163,7 +203,7 @@ public final class MapImage
     }
     
     public double getDisplayHeight() {
-        return this.displayHeight;
+        return (this.displayHeight == null) ? 0.0 : this.displayHeight;
     }
     
     public MapImage setDisplayHeight(final double displayHeight) {

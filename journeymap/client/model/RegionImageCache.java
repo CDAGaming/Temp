@@ -51,11 +51,11 @@ public enum RegionImageCache
         });
     }
     
-    public RegionImageSet getRegionImageSet(final ChunkMD chunkMd, final MapType mapType) {
+    public RegionImageSet getRegionImageSet(final ChunkMD chunkMd, final MapView mapView) {
         if (chunkMd.hasChunk()) {
             final Minecraft mc = FMLClientHandler.instance().getClient();
             final Chunk chunk = chunkMd.getChunk();
-            final RegionCoord rCoord = RegionCoord.fromChunkPos(FileHandler.getJMWorldDir(mc), mapType, chunk.field_76635_g, chunk.field_76647_h);
+            final RegionCoord rCoord = RegionCoord.fromChunkPos(FileHandler.getJMWorldDir(mc), mapView, chunk.field_76635_g, chunk.field_76647_h);
             return this.getRegionImageSet(rCoord);
         }
         return null;
@@ -109,10 +109,10 @@ public enum RegionImageCache
         return this.lastFlush;
     }
     
-    public List<RegionCoord> getChangedSince(final MapType mapType, final long time) {
+    public List<RegionCoord> getChangedSince(final MapView mapView, final long time) {
         final ArrayList<RegionCoord> list = new ArrayList<RegionCoord>();
         for (final RegionImageSet regionImageSet : this.getRegionImageSets()) {
-            if (regionImageSet.updatedSince(mapType, time)) {
+            if (regionImageSet.updatedSince(mapView, time)) {
                 list.add(regionImageSet.getRegionCoord());
             }
         }
@@ -122,9 +122,9 @@ public enum RegionImageCache
         return list;
     }
     
-    public boolean isDirtySince(final RegionCoord rc, final MapType mapType, final long time) {
+    public boolean isDirtySince(final RegionCoord rc, final MapView mapView, final long time) {
         final RegionImageSet ris = this.getRegionImageSet(rc);
-        return ris != null && ris.updatedSince(mapType, time);
+        return ris != null && ris.updatedSince(mapView, time);
     }
     
     public void clear() {
@@ -137,7 +137,7 @@ public enum RegionImageCache
     
     public boolean deleteMap(final MapState state, final boolean allDims) {
         final RegionCoord fakeRc = new RegionCoord(state.getWorldDir(), 0, 0, state.getDimension());
-        final File imageDir = RegionImageHandler.getImageDir(fakeRc, MapType.day(state.getDimension())).getParentFile();
+        final File imageDir = RegionImageHandler.getImageDir(fakeRc, MapView.day(state.getDimension())).getParentFile();
         if (!imageDir.getName().startsWith("DIM")) {
             RegionImageCache.logger.error("Expected DIM directory, got " + imageDir);
             return false;

@@ -20,11 +20,12 @@ import org.apache.logging.log4j.*;
 import net.minecraftforge.common.*;
 import journeymap.client.log.*;
 import java.util.*;
-import net.minecraft.world.*;
+import net.minecraft.client.entity.*;
 import journeymap.client.*;
 import journeymap.client.feature.*;
 import journeymap.common.version.*;
 import org.lwjgl.opengl.*;
+import net.minecraft.world.*;
 import net.minecraft.world.storage.*;
 import net.minecraft.server.integrated.*;
 
@@ -39,7 +40,7 @@ public class WorldData extends CacheLoader<Class, WorldData>
     long time;
     boolean hardcore;
     boolean singlePlayer;
-    Map<Feature, Boolean> features;
+    String features;
     String jm_version;
     String latest_journeymap_version;
     String mc_version;
@@ -133,7 +134,7 @@ public class WorldData extends CacheLoader<Class, WorldData>
             worldName = mc.func_71401_C().func_71221_J();
         }
         else {
-            worldName = mc.field_71441_e.func_72912_H().func_76065_j();
+            worldName = Journeymap.clientWorld().func_72912_H().func_76065_j();
             final String serverName = getServerName();
             if (serverName == null) {
                 return "offline";
@@ -166,6 +167,15 @@ public class WorldData extends CacheLoader<Class, WorldData>
         }
     }
     
+    public static DimensionProvider getDimensionProvider(final int dimension) {
+        for (final DimensionProvider provider : getDimensionProviders(Collections.singletonList(dimension))) {
+            if (provider.getDimension() == dimension) {
+                return provider;
+            }
+        }
+        return new DummyProvider(dimension);
+    }
+    
     public static List<DimensionProvider> getDimensionProviders(final List<Integer> requiredDimensionList) {
         try {
             final HashSet<Integer> requiredDims = new HashSet<Integer>(requiredDimensionList);
@@ -178,9 +188,9 @@ public class WorldData extends CacheLoader<Class, WorldData>
             dims = DimensionManager.getStaticDimensionIDs();
             Journeymap.getLogger().log(logLevel, String.format("DimensionManager has static dims: %s", Arrays.asList(dims)));
             requiredDims.addAll((Collection<?>)Arrays.asList(dims));
-            final Minecraft mc = FMLClientHandler.instance().getClient();
-            final WorldProvider playerProvider = mc.field_71439_g.field_70170_p.field_73011_w;
-            final int dimId = mc.field_71439_g.field_71093_bK;
+            final EntityPlayerSP player = Journeymap.clientPlayer();
+            final WorldProvider playerProvider = player.func_130014_f_().field_73011_w;
+            final int dimId = player.field_71093_bK;
             final DimensionProvider playerDimProvider = new WrappedProvider(playerProvider);
             dimProviders.put(dimId, playerDimProvider);
             requiredDims.remove(dimId);
@@ -244,22 +254,22 @@ public class WorldData extends CacheLoader<Class, WorldData>
             return dimensionProvider.getName();
         }
         catch (Exception e) {
-            final Minecraft mc = FMLClientHandler.instance().getClient();
-            return Constants.getString("jm.common.dimension", mc.field_71441_e.field_73011_w.getDimension());
+            return Constants.getString("jm.common.dimension", Journeymap.clientWorld().field_73011_w.getDimension());
         }
     }
     
     public WorldData load(final Class aClass) throws Exception {
         final Minecraft mc = FMLClientHandler.instance().getClient();
-        final WorldInfo worldInfo = mc.field_71441_e.func_72912_H();
+        final World world = Journeymap.clientWorld();
+        final WorldInfo worldInfo = world.func_72912_H();
         final IntegratedServer server = mc.func_71401_C();
         final boolean multiplayer = server == null || server.func_71344_c();
         this.name = getWorldName(mc, false);
-        this.dimension = mc.field_71441_e.field_73011_w.getDimension();
+        this.dimension = world.field_73011_w.getDimension();
         this.hardcore = worldInfo.func_76093_s();
         this.singlePlayer = !multiplayer;
-        this.time = mc.field_71441_e.func_72820_D() % 24000L;
-        this.features = FeatureManager.getAllowedFeatures();
+        this.time = world.func_72820_D() % 24000L;
+        this.features = ClientFeatures.instance().getJson(this.dimension);
         this.mod_name = JourneymapClient.MOD_NAME;
         this.jm_version = Journeymap.JM_VERSION.toString();
         this.latest_journeymap_version = VersionCheck.getVersionAvailable();
@@ -269,7 +279,7 @@ public class WorldData extends CacheLoader<Class, WorldData>
     }
     
     public static String getGameTime() {
-        final long worldTime = FMLClientHandler.instance().getClient().field_71441_e.func_72820_D() % 24000L;
+        final long worldTime = Journeymap.clientWorld().func_72820_D() % 24000L;
         String label;
         if (worldTime < 12000L) {
             label = WorldData.DAYTIME;
@@ -340,7 +350,7 @@ public class WorldData extends CacheLoader<Class, WorldData>
         
         @Override
         public String getName() {
-            return "Dimension " + this.dim;
+            return Constants.getString("jm.waypoint.dimension", this.dim);
         }
     }
     

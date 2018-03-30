@@ -4,9 +4,12 @@ import org.apache.logging.log4j.*;
 import journeymap.common.*;
 import net.minecraft.client.*;
 import journeymap.client.*;
+import journeymap.client.feature.*;
 import journeymap.client.ui.fullscreen.*;
 import journeymap.client.log.*;
 import journeymap.common.log.*;
+import net.minecraft.client.entity.*;
+import net.minecraft.world.*;
 import net.minecraft.client.gui.*;
 
 public class MappingMonitorTask implements IMainThreadTask
@@ -27,19 +30,24 @@ public class MappingMonitorTask implements IMainThreadTask
                 return this;
             }
             final boolean isDead = mc.field_71462_r != null && mc.field_71462_r instanceof GuiGameOver;
-            if (mc.field_71441_e == null) {
+            final EntityPlayerSP player = Journeymap.clientPlayer();
+            final World world = Journeymap.clientWorld();
+            if (world == null) {
                 if (jm.isMapping()) {
                     jm.stopMapping();
                 }
                 final GuiScreen guiScreen = mc.field_71462_r;
-                if ((guiScreen instanceof GuiMainMenu || guiScreen instanceof GuiWorldSelection || guiScreen instanceof GuiMultiplayer) && jm.getCurrentWorldId() != null) {
-                    this.logger.info("World ID has been reset.");
-                    jm.setCurrentWorldId(null);
+                if (guiScreen instanceof GuiMainMenu || guiScreen instanceof GuiWorldSelection || guiScreen instanceof GuiMultiplayer) {
+                    ClientFeatures.instance().resetAll(false);
+                    if (jm.getCurrentWorldId() != null) {
+                        this.logger.info("World ID has been reset.");
+                        jm.setCurrentWorldId(null);
+                    }
                 }
                 return this;
             }
-            if (this.lastDimension != mc.field_71439_g.field_71093_bK) {
-                this.lastDimension = mc.field_71439_g.field_71093_bK;
+            if (this.lastDimension != player.field_71093_bK) {
+                this.lastDimension = player.field_71093_bK;
                 if (jm.isMapping()) {
                     jm.stopMapping();
                 }

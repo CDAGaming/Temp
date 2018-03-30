@@ -3,7 +3,6 @@ package journeymap.common.version;
 import journeymap.common.*;
 import java.util.*;
 import com.google.common.base.*;
-import org.apache.logging.log4j.util.*;
 
 public class Version implements Comparable<Version>
 {
@@ -77,7 +76,7 @@ public class Version implements Comparable<Version>
     }
     
     public boolean isRelease() {
-        return Strings.isEmpty((CharSequence)this.patch);
+        return Strings.isNullOrEmpty(this.patch);
     }
     
     @Override

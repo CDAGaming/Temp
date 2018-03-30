@@ -10,8 +10,8 @@ import net.minecraftforge.client.settings.*;
 import journeymap.client.ui.minimap.*;
 import journeymap.client.ui.*;
 import com.google.common.collect.*;
-import journeymap.client.model.*;
-import net.minecraft.entity.player.*;
+import journeymap.client.ui.waypoint.*;
+import journeymap.client.api.display.*;
 import journeymap.client.ui.component.*;
 import journeymap.common.properties.*;
 import journeymap.client.*;
@@ -77,7 +77,7 @@ public enum KeyEventHandler implements EventHandlerManager.EventHandler
         this.setAction(this.minimapPreviewActions, this.kbMinimapPreset, UIManager.INSTANCE::switchMiniMapPreset);
         this.inGameActions.putAll((Multimap)this.minimapPreviewActions);
         this.kbCreateWaypoint = this.register("key.journeymap.create_waypoint", (IKeyConflictContext)KeyConflictContext.IN_GAME, KeyModifier.NONE, 48);
-        this.setAction(this.inGameActions, this.kbCreateWaypoint, () -> UIManager.INSTANCE.openWaypointEditor(Waypoint.of((EntityPlayer)this.mc.field_71439_g), true, null));
+        this.setAction(this.inGameActions, this.kbCreateWaypoint, WaypointEditor::openPlayerWaypoint);
         this.kbFullscreenCreateWaypoint = this.register("key.journeymap.fullscreen_create_waypoint", (IKeyConflictContext)KeyConflictContext.GUI, KeyModifier.NONE, 48);
         this.setAction(this.inGuiActions, this.kbFullscreenCreateWaypoint, () -> this.getFullscreen().createWaypointAtMouse());
         this.kbFullscreenChatPosition = this.register("key.journeymap.fullscreen_chat_position", (IKeyConflictContext)KeyConflictContext.GUI, KeyModifier.NONE, 46);
@@ -172,7 +172,7 @@ public enum KeyEventHandler implements EventHandlerManager.EventHandler
             }
         }
         catch (Exception e) {
-            this.logger.error("Error checking keybinding", (Object)LogFormatter.toPartialString(e));
+            this.logger.error("Error checking keybinding: " + LogFormatter.toPartialString(e));
         }
         return false;
     }

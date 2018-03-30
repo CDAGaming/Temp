@@ -44,7 +44,7 @@ public class FileService extends BaseService
             }
             this.useZipEntry = ((resourceDir.getProtocol().equals("file") || resourceDir.getProtocol().equals("jar")) && testPath.contains("!/"));
         }
-        if (!this.useZipEntry && "14.23.0.2491".contains("@")) {
+        if (!this.useZipEntry && "14.23.1.2555".contains("@")) {
             try {
                 testPath = new File("../src/main/resources/assets/journeymap/ui").getCanonicalPath();
                 Journeymap.getLogger().info("Dev environment detected, serving source files from " + testPath);

@@ -7,20 +7,22 @@ import net.minecraftforge.fml.common.gameevent.*;
 import journeymap.common.*;
 import journeymap.client.api.impl.*;
 import journeymap.common.log.*;
+import net.minecraft.client.entity.*;
 import net.minecraftforge.fml.common.eventhandler.*;
-import net.minecraft.util.math.*;
 import journeymap.client.api.event.*;
-import journeymap.client.model.*;
+import java.util.*;
+import journeymap.client.*;
+import java.text.*;
+import journeymap.client.api.display.*;
+import journeymap.client.render.texture.*;
+import journeymap.client.api.model.*;
 import journeymap.client.waypoint.*;
-import net.minecraft.entity.player.*;
 import journeymap.client.properties.*;
-import net.minecraft.client.resources.*;
-import net.minecraft.util.text.*;
+import net.minecraft.util.math.*;
 
 @SideOnly(Side.CLIENT)
 public class StateTickHandler implements EventHandlerManager.EventHandler
 {
-    static boolean javaChecked;
     Minecraft mc;
     int counter;
     private boolean deathpointCreated;
@@ -37,7 +39,8 @@ public class StateTickHandler implements EventHandlerManager.EventHandler
             return;
         }
         this.mc.field_71424_I.func_76320_a("journeymap");
-        if (this.mc.field_71439_g != null && this.mc.field_71439_g.field_70128_L) {
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        if (player != null && player.field_70128_L) {
             if (!this.deathpointCreated) {
                 this.deathpointCreated = true;
                 this.createDeathpoint();
@@ -45,9 +48,6 @@ public class StateTickHandler implements EventHandlerManager.EventHandler
         }
         else {
             this.deathpointCreated = false;
-        }
-        if (!StateTickHandler.javaChecked && this.mc.field_71439_g != null && !this.mc.field_71439_g.field_70128_L) {
-            this.checkJava();
         }
         try {
             if (this.counter == 20) {
@@ -58,7 +58,7 @@ public class StateTickHandler implements EventHandlerManager.EventHandler
             }
             else if (this.counter == 10) {
                 this.mc.field_71424_I.func_76320_a("multithreadTasks");
-                if (Journeymap.getClient().isMapping() && this.mc.field_71441_e != null) {
+                if (Journeymap.getClient().isMapping() && Journeymap.clientWorld() != null) {
                     Journeymap.getClient().performMultithreadTasks();
                 }
                 ++this.counter;
@@ -84,21 +84,26 @@ public class StateTickHandler implements EventHandlerManager.EventHandler
     
     private void createDeathpoint() {
         try {
-            final EntityPlayer player = (EntityPlayer)this.mc.field_71439_g;
+            final EntityPlayerSP player = Journeymap.clientPlayer();
             if (player == null) {
                 Journeymap.getLogger().error("Lost reference to player before Deathpoint could be created");
                 return;
             }
+            final int dim = player.field_71093_bK;
             final WaypointProperties waypointProperties = Journeymap.getClient().getWaypointProperties();
-            final boolean enabled = waypointProperties.managerEnabled.get() && waypointProperties.createDeathpoints.get();
+            final boolean enabled = waypointProperties.createDeathpoints.get();
             boolean cancelled = false;
-            final BlockPos pos = new BlockPos(MathHelper.func_76128_c(player.field_70165_t), MathHelper.func_76128_c(player.field_70163_u), MathHelper.func_76128_c(player.field_70161_v));
+            final BlockPos pos = player.func_180425_c();
             if (enabled) {
-                final int dim = FMLClientHandler.instance().getClient().field_71439_g.field_70170_p.field_73011_w.getDimension();
                 final DeathWaypointEvent event = new DeathWaypointEvent(pos, dim);
                 ClientAPI.INSTANCE.getClientEventManager().fireDeathpointEvent(event);
                 if (!event.isCancelled()) {
-                    final Waypoint deathpoint = Waypoint.at(pos, Waypoint.Type.Death, dim);
+                    final Date now = new Date();
+                    final String name = String.format("%s %s %s", Constants.getString("jm.waypoint.deathpoint"), DateFormat.getTimeInstance().format(now), DateFormat.getDateInstance(3).format(now));
+                    final Waypoint deathpoint = new Waypoint("journeymap", name, player.field_71093_bK, pos);
+                    final int red = 16711680;
+                    deathpoint.setLabelColor(red);
+                    deathpoint.setIcon(new MapImage(TextureCache.Deathpoint, 16, 16).setColor(red));
                     WaypointStore.INSTANCE.save(deathpoint);
                 }
                 else {
@@ -110,27 +115,5 @@ public class StateTickHandler implements EventHandlerManager.EventHandler
         catch (Throwable t) {
             Journeymap.getLogger().error("Unexpected Error in createDeathpoint(): " + LogFormatter.toString(t));
         }
-    }
-    
-    private void checkJava() {
-        StateTickHandler.javaChecked = true;
-        try {
-            Class.forName("java.util.Objects");
-        }
-        catch (ClassNotFoundException e3) {
-            try {
-                final String error = I18n.func_135052_a("jm.error.java6", new Object[0]);
-                FMLClientHandler.instance().getClient().field_71456_v.func_146158_b().func_146227_a((ITextComponent)new TextComponentString(error));
-                Journeymap.getLogger().fatal("JourneyMap requires Java 7 or Java 8. Update your launcher profile to use a newer version of Java.");
-            }
-            catch (Exception e2) {
-                e2.printStackTrace();
-            }
-            Journeymap.getClient().disable();
-        }
-    }
-    
-    static {
-        StateTickHandler.javaChecked = false;
     }
 }

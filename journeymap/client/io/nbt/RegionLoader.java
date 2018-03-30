@@ -9,22 +9,23 @@ import net.minecraft.util.datafix.*;
 import net.minecraft.world.chunk.storage.*;
 import journeymap.client.io.*;
 import net.minecraft.util.math.*;
-import net.minecraft.world.*;
 import java.util.*;
+import net.minecraft.world.*;
 import java.util.regex.*;
+import net.minecraft.client.entity.*;
 
 public class RegionLoader
 {
     private static final Pattern anvilPattern;
     final Logger logger;
-    final MapType mapType;
+    final MapView mapView;
     final Stack<RegionCoord> regions;
     final int regionsFound;
     
-    public RegionLoader(final Minecraft minecraft, final MapType mapType, final boolean all) throws IOException {
+    public RegionLoader(final Minecraft minecraft, final MapView mapView, final boolean all) throws IOException {
         this.logger = Journeymap.getLogger();
-        this.mapType = mapType;
-        this.regions = this.findRegions(minecraft, mapType, all);
+        this.mapView = mapView;
+        this.regions = this.findRegions(minecraft, mapView, all);
         this.regionsFound = this.regions.size();
     }
     
@@ -53,15 +54,15 @@ public class RegionLoader
     }
     
     public boolean isUnderground() {
-        return this.mapType.isUnderground();
+        return this.mapView.isUnderground();
     }
     
     public Integer getVSlice() {
-        return this.mapType.vSlice;
+        return this.mapView.vSlice;
     }
     
-    Stack<RegionCoord> findRegions(final Minecraft mc, final MapType mapType, final boolean all) {
-        final File mcWorldDir = FileHandler.getMCWorldDir(mc, mapType.dimension);
+    Stack<RegionCoord> findRegions(final Minecraft mc, final MapView mapView, final boolean all) {
+        final File mcWorldDir = FileHandler.getMCWorldDir(mc, mapView.dimension);
         final File regionDir = new File(mcWorldDir, "region");
         if (!regionDir.exists() && !regionDir.mkdirs()) {
             this.logger.warn("MC world region directory isn't usable: " + regionDir);
@@ -74,23 +75,23 @@ public class RegionLoader
         final AnvilChunkLoader anvilChunkLoader = new AnvilChunkLoader(FileHandler.getWorldSaveDir(mc), DataFixesManager.func_188279_a());
         int validFileCount = 0;
         int existingImageCount = 0;
-        final File[] listFiles;
-        final File[] anvilFiles = listFiles = regionDir.listFiles();
-        for (final File anvilFile : listFiles) {
+        final File[] anvilFiles = regionDir.listFiles();
+        final World world = Journeymap.clientWorld();
+        for (final File anvilFile : anvilFiles) {
             final Matcher matcher = RegionLoader.anvilPattern.matcher(anvilFile.getName());
             if (!anvilFile.isDirectory() && matcher.matches()) {
                 ++validFileCount;
                 final String x = matcher.group(1);
                 final String z = matcher.group(2);
                 if (x != null && z != null) {
-                    final RegionCoord rc = new RegionCoord(jmImageWorldDir, Integer.parseInt(x), Integer.parseInt(z), mapType.dimension);
+                    final RegionCoord rc = new RegionCoord(jmImageWorldDir, Integer.parseInt(x), Integer.parseInt(z), mapView.dimension);
                     if (all) {
                         stack.add(rc);
                     }
-                    else if (!RegionImageHandler.getRegionImageFile(rc, mapType, false).exists()) {
+                    else if (!RegionImageHandler.getRegionImageFile(rc, mapView, false).exists()) {
                         final List<ChunkPos> chunkCoords = rc.getChunkCoordsInRegion();
                         for (final ChunkPos coord : chunkCoords) {
-                            if (anvilChunkLoader.chunkExists((World)mc.field_71441_e, coord.field_77276_a, coord.field_77275_b)) {
+                            if (anvilChunkLoader.chunkExists(world, coord.field_77276_a, coord.field_77275_b)) {
                                 stack.add(rc);
                                 break;
                             }
@@ -103,9 +104,10 @@ public class RegionLoader
             }
         }
         if (stack.isEmpty() && validFileCount != existingImageCount) {
-            this.logger.warn("Anvil region files in " + regionDir + ": " + validFileCount + ", matching image files: " + existingImageCount + ", but found nothing to do for mapType " + mapType);
+            this.logger.warn("Anvil region files in " + regionDir + ": " + validFileCount + ", matching image files: " + existingImageCount + ", but found nothing to do for mapView " + mapView);
         }
-        final RegionCoord playerRc = RegionCoord.fromChunkPos(jmImageWorldDir, mapType, mc.field_71439_g.field_70176_ah, mc.field_71439_g.field_70164_aj);
+        final EntityPlayerSP player = Journeymap.clientPlayer();
+        final RegionCoord playerRc = RegionCoord.fromChunkPos(jmImageWorldDir, mapView, player.field_70176_ah, player.field_70164_aj);
         if (stack.contains(playerRc)) {
             stack.remove(playerRc);
         }
@@ -131,8 +133,8 @@ public class RegionLoader
         return stack;
     }
     
-    public MapType getMapType() {
-        return this.mapType;
+    public MapView getMapType() {
+        return this.mapView;
     }
     
     static {

@@ -1,12 +1,12 @@
 package journeymap.client.render.draw;
 
-import journeymap.client.model.*;
+import journeymap.client.api.display.*;
 import journeymap.client.render.map.*;
-import net.minecraftforge.fml.client.*;
+import journeymap.client.feature.*;
+import journeymap.common.api.feature.*;
 import journeymap.common.*;
 import journeymap.client.data.*;
 import journeymap.common.log.*;
-import net.minecraft.client.*;
 import net.minecraft.entity.player.*;
 import net.minecraft.util.math.*;
 import java.util.*;
@@ -20,18 +20,20 @@ public class WaypointDrawStepFactory
     }
     
     public List<DrawWayPointStep> prepareSteps(final Collection<Waypoint> waypoints, final GridRenderer grid, boolean checkDistance, final boolean showLabel) {
-        final Minecraft mc = FMLClientHandler.instance().getClient();
-        final EntityPlayer player = (EntityPlayer)mc.field_71439_g;
-        final int dimension = player.field_71093_bK;
+        this.drawStepList.clear();
+        final int dimension = grid.getMapView().dimension;
+        if (!ClientFeatures.instance().isAllowed(Feature.Radar.Waypoint, dimension)) {
+            return this.drawStepList;
+        }
+        final EntityPlayer player = (EntityPlayer)Journeymap.clientPlayer();
         final int maxDistance = Journeymap.getClient().getWaypointProperties().maxDistance.get();
         checkDistance = (checkDistance && maxDistance > 0);
         final Vec3d playerVec = checkDistance ? player.func_174791_d() : null;
-        this.drawStepList.clear();
         try {
             for (final Waypoint waypoint : waypoints) {
-                if (waypoint.isEnable() && waypoint.isInPlayerDimension()) {
+                if (waypoint.isDisplayed(dimension)) {
                     if (checkDistance) {
-                        final double actualDistance = playerVec.func_72438_d(waypoint.getPosition());
+                        final double actualDistance = playerVec.func_72438_d(waypoint.getVec(dimension));
                         if (actualDistance > maxDistance) {
                             continue;
                         }
